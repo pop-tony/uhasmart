@@ -99,7 +99,7 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareText = `Check out "${product.title}" on VarsMart (GHS ${priceDisplay}): https://uhasmartlive.vercel.app/marketplace?query=${encodeURIComponent(
+    const shareText = `Check out "${product.title}" on VarsMart (GHS ${priceDisplay}): https://varsmartgh.com/marketplace?query=${encodeURIComponent(
       product.title
     )}`;
 

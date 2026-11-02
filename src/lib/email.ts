@@ -35,7 +35,7 @@ function getMailTransporter() {
 }
 
 const DEFAULT_FROM = process.env.SMTP_FROM || `"VarsMart" <${process.env.SMTP_USER || "noreply@varsmart.com"}>`;
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://uhasmart.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://varsmartgh.com";
 
 /**
  * 1. Send Seller Subscription Payment & Activation Receipt
