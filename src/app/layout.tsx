@@ -96,6 +96,9 @@ export const metadata: Metadata = {
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
+  verification: {
+    google: "yZRe6HPCB793gtjrq9lO1rJVvnXrKbQ32il6mU_Jc4E",
+  },
 };
 
 const jsonLd = {
@@ -168,6 +171,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta
+          name="google-site-verification"
+          content="yZRe6HPCB793gtjrq9lO1rJVvnXrKbQ32il6mU_Jc4E"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
