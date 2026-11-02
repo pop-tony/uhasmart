@@ -1,8 +1,24 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MarketplaceView from "@/components/MarketplaceView";
 import ProductSkeletonCard from "@/components/ProductSkeletonCard";
+
+export const metadata: Metadata = {
+  title: "Campus Marketplace | Student Deals & Hostels in Ho, Ghana",
+  description:
+    "Browse student deals on textbooks, gadgets, phones, hostel vacancies, dorm provisions, fashion, and food across Ho, Volta Region. Connect directly with campus vendors.",
+  alternates: {
+    canonical: "https://varsmartgh.com/marketplace",
+  },
+  openGraph: {
+    title: "VarsMart Marketplace | Student Deals & Hostels in Ho, Ghana",
+    description:
+      "Discover campus hostel vacancies, electronics, food, and student thrift in Ho, Volta Region.",
+    url: "https://varsmartgh.com/marketplace",
+  },
+};
 
 function MarketplaceLoading() {
   return (

@@ -1,8 +1,18 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MarketplaceView from "@/components/MarketplaceView";
 import ProductSkeletonCard from "@/components/ProductSkeletonCard";
+
+export const metadata: Metadata = {
+  title: "VarsMart | Campus Student Marketplace & Hostels in Ho, Ghana",
+  description:
+    "Buy and sell student gadgets, hostels, textbooks, food, and thrift fashion in Ho, Volta Region. Safe campus meetups with student-verified sellers.",
+  alternates: {
+    canonical: "https://varsmartgh.com",
+  },
+};
 
 function MarketplaceLoading() {
   return (

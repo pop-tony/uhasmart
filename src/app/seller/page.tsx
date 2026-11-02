@@ -4,7 +4,18 @@ import Footer from "@/components/Footer";
 import SellerDashboard from "@/components/SellerDashboard";
 
 export const metadata: Metadata = {
-  title: "Seller Portal | VarsMart",
+  title: "Sell on VarsMart | Student Business Seller Portal",
+  description:
+    "Register your student business or hostel listing on VarsMart. Upload up to 20 product pictures at once, post promotional flyers, and reach thousands of student buyers in Ho.",
+  alternates: {
+    canonical: "https://varsmartgh.com/seller",
+  },
+  openGraph: {
+    title: "Sell on VarsMart | Campus Seller Portal",
+    description:
+      "Start selling on campus with a 30-day free trial. Reach thousands of university and polytechnic students in Ho.",
+    url: "https://varsmartgh.com/seller",
+  },
 };
 
 export default function SellerPage() {
