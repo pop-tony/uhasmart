@@ -30,6 +30,7 @@ import {
   Sparkles,
   X,
   Zap,
+  LifeBuoy,
 } from "lucide-react";
 import { parseSellerPhones } from "@/lib/whatsapp";
 
@@ -581,6 +582,23 @@ export default function AccountHub() {
               </div>
             </div>
             <ArrowRight className="h-4 w-4 text-gray-400 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+
+          {/* Help & Support Desk */}
+          <Link
+            href="/help"
+            className="group flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/50 p-4 transition-all hover:bg-blue-100/60 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
+                <LifeBuoy className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-blue-950">Help &amp; Support Center</p>
+                <p className="text-xs text-blue-700">Get assistance, FAQ guides &amp; contact campus desk</p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-blue-600 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
       )}

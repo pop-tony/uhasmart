@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import MobileDock from "@/components/MobileDock";
 import PwaRegister from "@/components/PwaRegister";
 import InstallAppBanner from "@/components/InstallAppBanner";
+import FloatingHelpButton from "@/components/FloatingHelpButton";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -54,6 +55,9 @@ export default function RootLayout({
 
         {/* Floating iOS Frosted Glass Mobile Dock */}
         <MobileDock />
+
+        {/* Floating Campus Help & Support Desk */}
+        <FloatingHelpButton />
 
         {/* PWA Service Worker & Install Prompt Banner */}
         <PwaRegister />

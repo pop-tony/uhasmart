@@ -12,6 +12,7 @@ import {
   Heart,
   Moon,
   Sun,
+  LifeBuoy,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useUnreadMessages } from "@/lib/useUnreadMessages";
@@ -24,6 +25,7 @@ const navLinks = [
   { href: "/", label: "Marketplace" },
   { href: "/seller", label: "Sell on VarsMart" },
   { href: "/messages", label: "Messages" },
+  { href: "/help", label: "Help & Support", isHelp: true },
 ];
 
 export default function Navbar() {
@@ -105,6 +107,7 @@ export default function Navbar() {
                   : "text-gray-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-800/60 hover:text-blue-700 dark:hover:text-blue-300"
               }`}
             >
+              {link.isHelp && <LifeBuoy className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
               <span>{link.label}</span>
               {link.href === "/messages" && hasUnread && (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white shadow-sm animate-pulse">
@@ -232,7 +235,10 @@ export default function Navbar() {
                   : "text-gray-700 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-800 hover:text-blue-700"
               }`}
             >
-              <span>{link.label}</span>
+              <div className="flex items-center gap-2">
+                {link.isHelp && <LifeBuoy className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+                <span>{link.label}</span>
+              </div>
               {link.href === "/messages" && hasUnread && (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white shadow-sm">
                   {unreadCount > 9 ? "9+" : unreadCount}

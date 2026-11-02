@@ -33,6 +33,9 @@ export default function Footer() {
             <Link href="/login" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
               My Account
             </Link>
+            <Link href="/help" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-semibold text-blue-600/90 dark:text-blue-400/90">
+              Help &amp; Support
+            </Link>
             {showInstallButton && (
               <button
                 type="button"
