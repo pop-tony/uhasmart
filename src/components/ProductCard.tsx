@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Share2,
   CheckCircle,
+  Play,
 } from "lucide-react";
 import { categories, getCategoryIcon } from "@/lib/data";
 import { getListingImageUrl } from "@/lib/storage";
@@ -30,6 +31,7 @@ export interface ProductItem {
   price_type?: "fixed" | "range";
   listing_type?: "product" | "flyer";
   gallery_images?: string[] | null;
+  video_url?: string | null;
   location: string;
   seller_id?: string;
   image_path?: string | null;
@@ -164,6 +166,14 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
               <span className="inline-flex items-center gap-1 rounded-full bg-purple-600/90 px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm backdrop-blur-md">
                 <FileText className="h-2.5 w-2.5" />
                 <span>Flyer</span>
+              </span>
+            )}
+
+            {/* Video Badge */}
+            {product.video_url && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-600/90 px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-sm backdrop-blur-md">
+                <Play className="h-2.5 w-2.5 fill-current" />
+                <span>Video</span>
               </span>
             )}
           </div>

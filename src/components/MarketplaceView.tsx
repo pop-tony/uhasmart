@@ -30,8 +30,11 @@ import {
   Flame,
   Home,
   SlidersHorizontal,
+  Play,
+  ExternalLink,
 } from "lucide-react";
 import { createWhatsAppUrl, createCallUrl, parseSellerPhones } from "@/lib/whatsapp";
+import { parseVideoInfo } from "@/lib/video";
 
 export default function MarketplaceView() {
   const supabase = createClient();
@@ -74,6 +77,7 @@ export default function MarketplaceView() {
   // Product Details & Inquiry Bottom Sheet
   const [inquireProduct, setInquireProduct] = useState<ProductItem | null>(null);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
+  const [activeMediaTab, setActiveMediaTab] = useState<"photos" | "video">("photos");
   const [inquiryBody, setInquiryBody] = useState("");
   const [showInAppForm, setShowInAppForm] = useState(false);
   const [sendingInquiry, setSendingInquiry] = useState(false);
@@ -92,7 +96,7 @@ export default function MarketplaceView() {
         const { data, error } = await supabase
           .from("listings")
           .select(
-            "id,title,description,category,price_ghs,price_max_ghs,price_type,listing_type,gallery_images,contact_phone,location,seller_id,image_path,created_at,profiles(display_name,business_name,phone_number,campus_location,subscription_status,subscription_expires_at,trial_ends_at,created_at)"
+            "id,title,description,category,price_ghs,price_max_ghs,price_type,listing_type,gallery_images,video_url,contact_phone,location,seller_id,image_path,created_at,profiles(display_name,business_name,phone_number,campus_location,subscription_status,subscription_expires_at,trial_ends_at,created_at)"
           )
           .eq("status", "active")
           .order("created_at", { ascending: false });
@@ -234,6 +238,10 @@ export default function MarketplaceView() {
   const modalCategoryObj = inquireProduct
     ? categories.find((c) => c.id === inquireProduct.category)
     : null;
+
+  const videoInfo = useMemo(() => {
+    return parseVideoInfo(inquireProduct?.video_url);
+  }, [inquireProduct?.video_url]);
 
   const isFlyer = inquireProduct?.listing_type === "flyer";
   const isRange =
@@ -488,6 +496,7 @@ export default function MarketplaceView() {
                   onInquire={(item) => {
                     setInquireProduct(item);
                     setActiveGalleryIndex(0);
+                    setActiveMediaTab("photos");
                     setShowInAppForm(false);
                     setSheetImgError(false);
                     setInquiryNotice("");
@@ -542,85 +551,186 @@ export default function MarketplaceView() {
                 </button>
               </div>
 
-              {/* Main Showcase Image */}
-              <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 shadow-inner">
-                {modalImageUrl && !sheetImgError ? (
-                  <img
-                    src={modalImageUrl}
-                    alt={inquireProduct.title}
-                    onError={() => setSheetImgError(true)}
-                    className="h-full w-full object-cover transition-all duration-200"
-                  />
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 text-gray-400">
-                    <ModalCategoryIcon className="h-12 w-12 text-gray-300 dark:text-slate-600" />
-                    <span className="mt-2 text-xs font-semibold text-gray-400 dark:text-slate-500">
-                      {modalCategoryObj?.name ?? "Campus Item"}
-                    </span>
-                  </div>
-                )}
-
-                {/* Floating Price Tag */}
-                <div className="absolute bottom-3 left-3">
-                  <div className="glass-pill inline-flex items-baseline gap-1 rounded-2xl px-3 py-1.5 shadow-lg backdrop-blur-md">
-                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400">GHS</span>
-                    <span className="text-lg sm:text-xl font-black text-gray-900 dark:text-white tracking-tight">
-                      {priceDisplay}
-                    </span>
-                  </div>
+              {/* Media Switcher (Photos vs Video Tour) */}
+              {videoInfo && (
+                <div className="flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMediaTab("photos")}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      activeMediaTab === "photos"
+                        ? "bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-500 dark:text-slate-400 hover:text-gray-900"
+                    }`}
+                  >
+                    <Images className="h-3.5 w-3.5" />
+                    <span>Photos ({galleryPhotos.length || 1})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMediaTab("video")}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      activeMediaTab === "video"
+                        ? "bg-red-600 text-white shadow-sm"
+                        : "text-gray-600 dark:text-slate-300 hover:text-red-600"
+                    }`}
+                  >
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    <span>Watch Video Tour</span>
+                  </button>
                 </div>
+              )}
 
-                {/* Photo Index Indicator */}
-                {galleryPhotos.length > 1 && (
-                  <div className="absolute top-3 right-3">
-                    <span className="glass-pill inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold text-gray-800 dark:text-white shadow-md backdrop-blur-md">
-                      <Images className="h-3 w-3 text-blue-600" />
-                      <span>
-                        {activeGalleryIndex + 1} / {galleryPhotos.length}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Photo Gallery Thumbnails */}
-              {galleryPhotos.length > 1 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-gray-600 dark:text-slate-300">
-                    <span>Product Gallery ({galleryPhotos.length} pictures)</span>
-                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
-                      Tap photo to view
-                    </span>
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
-                    {galleryPhotos.map((photoPath, idx) => {
-                      const thumbUrl = getListingImageUrl(photoPath);
-                      const isSelected = activeGalleryIndex === idx;
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setActiveGalleryIndex(idx)}
-                          className={`relative h-14 w-14 shrink-0 rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${
-                            isSelected
-                              ? "border-blue-600 ring-2 ring-blue-600/30 scale-105"
-                              : "border-gray-200 dark:border-slate-700 opacity-70 hover:opacity-100"
-                          }`}
+              {/* Media Showcase: Video Player or Showcase Image */}
+              {activeMediaTab === "video" && videoInfo ? (
+                <div className="space-y-2">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-black shadow-inner flex flex-col items-center justify-center">
+                    {videoInfo.type === "youtube" && videoInfo.embedUrl ? (
+                      <iframe
+                        src={videoInfo.embedUrl}
+                        title="Product Video Tour"
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : videoInfo.type === "instagram" && videoInfo.embedUrl ? (
+                      <iframe
+                        src={videoInfo.embedUrl}
+                        title="Instagram Reel"
+                        className="w-full h-full border-0 bg-white"
+                        allowFullScreen
+                      />
+                    ) : videoInfo.type === "tiktok" ? (
+                      <div className="p-6 text-center text-white space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center mx-auto text-2xl shadow-lg">
+                          🎵
+                        </div>
+                        <div>
+                          <p className="font-black text-sm">TikTok Video Showcase</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Watch the seller&apos;s product clip on TikTok
+                          </p>
+                        </div>
+                        <a
+                          href={videoInfo.streamUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-xl bg-white text-gray-900 px-4 py-2.5 text-xs font-black hover:bg-gray-100 active:scale-95 transition-all shadow-md"
                         >
-                          {thumbUrl ? (
-                            <img
-                              src={thumbUrl}
-                              alt={`Thumbnail ${idx}`}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-full w-full bg-slate-200 dark:bg-slate-800" />
-                          )}
-                        </button>
-                      );
-                    })}
+                          <span>Open on TikTok</span>
+                          <ExternalLink className="h-3.5 w-3.5 text-gray-500" />
+                        </a>
+                      </div>
+                    ) : (
+                      <video
+                        src={videoInfo.streamUrl}
+                        controls
+                        playsInline
+                        preload="none"
+                        poster={modalImageUrl || undefined}
+                        className="w-full h-full object-contain bg-black"
+                      />
+                    )}
                   </div>
+
+                  {/* External Link Hint for YouTube/Instagram/TikTok */}
+                  {videoInfo.type !== "file" && (
+                    <div className="flex justify-end">
+                      <a
+                        href={videoInfo.streamUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        <span>Open on {videoInfo.platformName}</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <>
+                  {/* Main Showcase Image */}
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 shadow-inner">
+                    {modalImageUrl && !sheetImgError ? (
+                      <img
+                        src={modalImageUrl}
+                        alt={inquireProduct.title}
+                        onError={() => setSheetImgError(true)}
+                        className="h-full w-full object-cover transition-all duration-200"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 text-gray-400">
+                        <ModalCategoryIcon className="h-12 w-12 text-gray-300 dark:text-slate-600" />
+                        <span className="mt-2 text-xs font-semibold text-gray-400 dark:text-slate-500">
+                          {modalCategoryObj?.name ?? "Campus Item"}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Floating Price Tag */}
+                    <div className="absolute bottom-3 left-3">
+                      <div className="glass-pill inline-flex items-baseline gap-1 rounded-2xl px-3 py-1.5 shadow-lg backdrop-blur-md">
+                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400">GHS</span>
+                        <span className="text-lg sm:text-xl font-black text-gray-900 dark:text-white tracking-tight">
+                          {priceDisplay}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Photo Index Indicator */}
+                    {galleryPhotos.length > 1 && (
+                      <div className="absolute top-3 right-3">
+                        <span className="glass-pill inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold text-gray-800 dark:text-white shadow-md backdrop-blur-md">
+                          <Images className="h-3 w-3 text-blue-600" />
+                          <span>
+                            {activeGalleryIndex + 1} / {galleryPhotos.length}
+                          </span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Photo Gallery Thumbnails */}
+                  {galleryPhotos.length > 1 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-gray-600 dark:text-slate-300">
+                        <span>Product Gallery ({galleryPhotos.length} pictures)</span>
+                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                          Tap photo to view
+                        </span>
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
+                        {galleryPhotos.map((photoPath, idx) => {
+                          const thumbUrl = getListingImageUrl(photoPath);
+                          const isSelected = activeGalleryIndex === idx;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setActiveGalleryIndex(idx)}
+                              className={`relative h-14 w-14 shrink-0 rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${
+                                isSelected
+                                  ? "border-blue-600 ring-2 ring-blue-600/30 scale-105"
+                                  : "border-gray-200 dark:border-slate-700 opacity-70 hover:opacity-100"
+                              }`}
+                            >
+                              {thumbUrl ? (
+                                <img
+                                  src={thumbUrl}
+                                  alt={`Thumbnail ${idx}`}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full bg-slate-200 dark:bg-slate-800" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Title & Location */}
@@ -709,6 +819,7 @@ export default function MarketplaceView() {
                           onClick={() => {
                             setInquireProduct(item);
                             setActiveGalleryIndex(0);
+                            setActiveMediaTab("photos");
                           }}
                           className="flex items-center gap-2 rounded-xl border border-gray-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-2 cursor-pointer hover:bg-white dark:hover:bg-slate-800 hover:border-blue-200 transition-all active:scale-95"
                         >

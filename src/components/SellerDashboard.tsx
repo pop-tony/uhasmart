@@ -29,7 +29,11 @@ import {
   PhoneCall,
   MessageCircle,
   Plus,
+  Video,
+  Play,
+  Link as LinkIcon,
 } from "lucide-react";
+import { MAX_VIDEO_FILE_SIZE_BYTES, MAX_VIDEO_FILE_SIZE_MB } from "@/lib/video";
 
 interface ListingItem {
   id: string;
@@ -41,6 +45,7 @@ interface ListingItem {
   price_type?: "fixed" | "range";
   listing_type?: "product" | "flyer";
   gallery_images?: string[] | null;
+  video_url?: string | null;
   contact_phone?: string | null;
   location: string;
   status: "pending" | "active" | "rejected" | "sold" | "withdrawn";
@@ -109,6 +114,13 @@ export default function SellerDashboard() {
   const [flyerPriceType, setFlyerPriceType] = useState<"fixed" | "range">("fixed");
   const [flyerPriceGhs, setFlyerPriceGhs] = useState("");
   const [flyerPriceMaxGhs, setFlyerPriceMaxGhs] = useState("");
+
+  // VIDEO OPTIONS (Option C: File Upload max 15MB or Social Link)
+  const [videoMode, setVideoMode] = useState<"none" | "file" | "link">("none");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoLinkUrl, setVideoLinkUrl] = useState("");
+  const [videoError, setVideoError] = useState("");
 
   // Calculate Subscription & Trial State
   const subscriptionState: SubscriptionState = getSubscriptionState(profile);
@@ -412,6 +424,37 @@ export default function SellerDashboard() {
     setFlyerPreview(null);
   }
 
+  // Video File Selection (Max 15MB)
+  function handleVideoFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      setVideoError("Please select a valid video file (MP4, MOV, or WEBM).");
+      return;
+    }
+
+    if (file.size > MAX_VIDEO_FILE_SIZE_BYTES) {
+      setVideoError(`Video file exceeds ${MAX_VIDEO_FILE_SIZE_MB}MB limit. Please compress or choose a shorter clip.`);
+      return;
+    }
+
+    setVideoError("");
+    setVideoFile(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
+  }
+
+  function handleRemoveVideo() {
+    if (videoPreviewUrl) {
+      URL.revokeObjectURL(videoPreviewUrl);
+    }
+    setVideoFile(null);
+    setVideoPreviewUrl(null);
+    setVideoLinkUrl("");
+    setVideoMode("none");
+    setVideoError("");
+  }
+
   // Submit Handler for Both Posting Options
   async function handleCreateListing(e: FormEvent) {
     e.preventDefault();
@@ -434,6 +477,26 @@ export default function SellerDashboard() {
         normalVoiceCall && normalVoiceCall !== primaryWhatsApp
           ? `${primaryWhatsApp} | ${normalVoiceCall}`
           : primaryWhatsApp;
+
+      // Handle Optional Video (File Upload or Social Link)
+      let finalVideoUrl: string | null = null;
+      if (videoMode === "file" && videoFile) {
+        setUploadProgressText("Uploading product video clip...");
+        const vExt = videoFile.name.split(".").pop()?.toLowerCase() || "mp4";
+        const vPath = `${user.id}/videos/${Date.now()}_${Math.random().toString(36).substring(2, 6)}.${vExt}`;
+
+        const { error: vUploadErr } = await supabase.storage
+          .from("listing-images")
+          .upload(vPath, videoFile, {
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (vUploadErr) throw new Error(`Failed to upload video clip: ${vUploadErr.message}`);
+        finalVideoUrl = vPath;
+      } else if (videoMode === "link" && videoLinkUrl.trim()) {
+        finalVideoUrl = videoLinkUrl.trim();
+      }
 
       // -------------------------------------------------------------
       // SUBMIT FLOW A: POST A PROMOTIONAL FLYER
@@ -475,6 +538,7 @@ export default function SellerDashboard() {
             contact_phone: finalContactPhone,
             image_path: flyerStoragePath,
             gallery_images: [flyerStoragePath],
+            video_url: finalVideoUrl,
             status: "pending",
           })
           .select()
@@ -486,6 +550,7 @@ export default function SellerDashboard() {
         setSuccess("Promotional flyer submitted! It is awaiting quick approval by campus moderators.");
         setShowCreateModal(false);
         handleRemoveFlyer();
+        handleRemoveVideo();
         setFlyerTitle("");
         setDescription("");
         setFlyerPriceGhs("");
@@ -544,6 +609,7 @@ export default function SellerDashboard() {
             contact_phone: finalContactPhone,
             image_path: uploadedPaths[0],
             gallery_images: uploadedPaths,
+            video_url: finalVideoUrl,
             status: "pending",
           })
           .select()
@@ -572,6 +638,7 @@ export default function SellerDashboard() {
             contact_phone: finalContactPhone,
             image_path: uploadedPaths[idx],
             gallery_images: uploadedPaths, // each item retains the batch gallery
+            video_url: finalVideoUrl,
             status: "pending",
           };
         });
@@ -595,6 +662,7 @@ export default function SellerDashboard() {
       setUniformPriceGhs("");
       setPriceMaxGhs("");
       setDescription("");
+      handleRemoveVideo();
       setShowCreateModal(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create listing.");
@@ -903,6 +971,11 @@ export default function SellerDashboard() {
                             {item.gallery_images?.length} imgs
                           </span>
                         )}
+                        {item.video_url && (
+                          <span className="absolute top-1 left-1 rounded-md bg-red-600/90 px-1 py-0.5 text-[8px] font-bold text-white flex items-center gap-0.5 shadow-sm">
+                            <Play className="h-2 w-2 fill-white" /> Video
+                          </span>
+                        )}
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -1020,11 +1093,17 @@ export default function SellerDashboard() {
                               )}
                             </div>
                             <div>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="font-bold text-gray-900">{item.title}</p>
                                 {isFlyer && (
                                   <span className="rounded bg-purple-100 text-purple-800 px-1.5 py-0.2 text-[9px] font-bold">
                                     Flyer
+                                  </span>
+                                )}
+                                {item.video_url && (
+                                  <span className="inline-flex items-center gap-0.5 rounded bg-red-100 text-red-700 px-1.5 py-0.5 text-[9px] font-bold">
+                                    <Play className="h-2 w-2 fill-red-700 text-red-700" />
+                                    Video
                                   </span>
                                 )}
                               </div>
@@ -1614,6 +1693,139 @@ export default function SellerDashboard() {
                     In case a buyer has no internet data or cannot reach you on WhatsApp, they can tap <strong>Call</strong> to dial this normal phone line directly.
                   </p>
                 </div>
+              </div>
+
+              {/* Product Video / Room Tour (Optional) */}
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                    <Video className="h-4 w-4 text-red-500" />
+                    <span>Video Clip or Tour (Optional)</span>
+                  </label>
+                  <span className="text-[10px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                    Max {MAX_VIDEO_FILE_SIZE_MB}MB or Link
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleRemoveVideo();
+                      setVideoMode("none");
+                    }}
+                    className={`rounded-xl py-2 px-1 text-[11px] font-bold transition-all text-center ${
+                      videoMode === "none"
+                        ? "bg-white text-gray-900 shadow-sm border border-gray-300"
+                        : "text-gray-500 hover:text-gray-800 hover:bg-white/50"
+                    }`}
+                  >
+                    No Video
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVideoMode("file");
+                      setVideoLinkUrl("");
+                    }}
+                    className={`rounded-xl py-2 px-1 text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                      videoMode === "file"
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
+                    }`}
+                  >
+                    <UploadCloud className="h-3.5 w-3.5 shrink-0" />
+                    <span>Upload Clip</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVideoMode("link");
+                      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+                      setVideoFile(null);
+                      setVideoPreviewUrl(null);
+                    }}
+                    className={`rounded-xl py-2 px-1 text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                      videoMode === "link"
+                        ? "bg-red-600 text-white shadow-sm"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
+                    }`}
+                  >
+                    <LinkIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span>Link Reel/Short</span>
+                  </button>
+                </div>
+
+                {videoError && (
+                  <p className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 p-2.5 rounded-xl">
+                    {videoError}
+                  </p>
+                )}
+
+                {videoMode === "file" && (
+                  <div className="space-y-2">
+                    {!videoFile ? (
+                      <label className="flex flex-col items-center justify-center border-2 border-dashed border-blue-200 hover:border-blue-500 bg-white rounded-2xl p-4 cursor-pointer transition-colors group">
+                        <UploadCloud className="h-7 w-7 text-blue-500 group-hover:scale-110 transition-transform mb-1" />
+                        <span className="text-xs font-bold text-gray-800">Choose short video clip</span>
+                        <span className="text-[10px] text-gray-500 mt-0.5">MP4, MOV, or WEBM (Max {MAX_VIDEO_FILE_SIZE_MB}MB)</span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/quicktime,video/webm"
+                          onChange={handleVideoFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                    ) : (
+                      <div className="bg-white rounded-2xl p-2.5 border border-gray-200 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                          {videoPreviewUrl && (
+                            <video
+                              src={videoPreviewUrl}
+                              className="w-12 h-12 rounded-xl object-cover bg-black shrink-0"
+                              muted
+                            />
+                          )}
+                          <div className="truncate">
+                            <p className="text-xs font-bold text-gray-900 truncate">{videoFile.name}</p>
+                            <p className="text-[10px] text-gray-500 font-semibold">
+                              {(videoFile.size / (1024 * 1024)).toFixed(1)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveVideo}
+                          className="p-2 text-gray-400 hover:text-red-600 transition-colors shrink-0"
+                          title="Remove video"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-[10px] text-gray-500">
+                      Great for hostel room walkthroughs, food preparation, or showing gadget condition in action!
+                    </p>
+                  </div>
+                )}
+
+                {videoMode === "link" && (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <LinkIcon className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                      <input
+                        type="url"
+                        value={videoLinkUrl}
+                        onChange={(e) => setVideoLinkUrl(e.target.value)}
+                        placeholder="Paste TikTok, Instagram Reel, or YouTube link..."
+                        className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-xs font-medium text-gray-900 focus:border-red-600 focus:outline-none"
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-500">
+                      Supports <strong>TikTok</strong>, <strong>Instagram Reels</strong>, and <strong>YouTube Shorts/Videos</strong>.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
