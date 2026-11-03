@@ -20,8 +20,8 @@ export interface SupportCategory {
 
 export const SUPPORT_CONFIG = {
   appName: "VarsMart",
-  supportPhone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || "0530895601",
-  supportWhatsApp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "0530895601",
+  supportPhone: process.env.NEXT_PUBLIC_SUPPORT_PHONE || "0591361005",
+  supportWhatsApp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "0591361005",
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@varsmart.com",
   campusLocation: "Ho, Volta Region &bull; Serving UHAS, HTU & Campus Communities",
   workingHours: "Available Mon - Sun &bull; 8:00 AM - 10:00 PM (Emergency 24/7)",

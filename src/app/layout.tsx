@@ -126,7 +126,7 @@ const jsonLd = {
       "sameAs": ["https://varsmartgh.com"],
       "contactPoint": {
         "@type": "ContactPoint",
-        "telephone": "+233530895601",
+        "telephone": "+233591361005",
         "contactType": "customer service",
         "areaServed": "GH",
         "availableLanguage": ["English", "Ewe", "Twi"],
@@ -138,7 +138,7 @@ const jsonLd = {
       "name": "VarsMart Campus Marketplace",
       "image": "https://varsmartgh.com/icon-512.png",
       "url": "https://varsmartgh.com",
-      "telephone": "+233530895601",
+      "telephone": "+233591361005",
       "priceRange": "GH₵",
       "address": {
         "@type": "PostalAddress",
