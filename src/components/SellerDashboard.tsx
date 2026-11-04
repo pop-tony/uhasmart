@@ -34,6 +34,7 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { MAX_VIDEO_FILE_SIZE_BYTES, MAX_VIDEO_FILE_SIZE_MB } from "@/lib/video";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 interface ListingItem {
   id: string;
@@ -478,22 +479,11 @@ export default function SellerDashboard() {
           ? `${primaryWhatsApp} | ${normalVoiceCall}`
           : primaryWhatsApp;
 
-      // Handle Optional Video (File Upload or Social Link)
+      // Handle Optional Video (File Upload to CDN or Social Link)
       let finalVideoUrl: string | null = null;
       if (videoMode === "file" && videoFile) {
-        setUploadProgressText("Uploading product video clip...");
-        const vExt = videoFile.name.split(".").pop()?.toLowerCase() || "mp4";
-        const vPath = `${user.id}/videos/${Date.now()}_${Math.random().toString(36).substring(2, 6)}.${vExt}`;
-
-        const { error: vUploadErr } = await supabase.storage
-          .from("listing-images")
-          .upload(vPath, videoFile, {
-            cacheControl: "3600",
-            upsert: true,
-          });
-
-        if (vUploadErr) throw new Error(`Failed to upload video clip: ${vUploadErr.message}`);
-        finalVideoUrl = vPath;
+        setUploadProgressText("Uploading product video clip to CDN...");
+        finalVideoUrl = await uploadToCloudinary(videoFile, "varsmart/videos");
       } else if (videoMode === "link" && videoLinkUrl.trim()) {
         finalVideoUrl = videoLinkUrl.trim();
       }
@@ -509,18 +499,8 @@ export default function SellerDashboard() {
         const basePrice = parseFloat(flyerPriceGhs) || 0;
         const maxPrice = flyerPriceType === "range" && flyerPriceMaxGhs ? parseFloat(flyerPriceMaxGhs) : null;
 
-        setUploadProgressText("Uploading promotional flyer image...");
-        const fileExt = flyerFile.name.split(".").pop()?.toLowerCase() || "jpg";
-        const flyerStoragePath = `${user.id}/flyers/${Date.now()}_${Math.random().toString(36).substring(2, 6)}.${fileExt}`;
-
-        const { error: uploadErr } = await supabase.storage
-          .from("listing-images")
-          .upload(flyerStoragePath, flyerFile, {
-            cacheControl: "3600",
-            upsert: true,
-          });
-
-        if (uploadErr) throw new Error(`Failed to upload flyer: ${uploadErr.message}`);
+        setUploadProgressText("Uploading promotional flyer image to CDN...");
+        const flyerUrl = await uploadToCloudinary(flyerFile, "varsmart/flyers");
 
         setUploadProgressText("Saving flyer listing to marketplace...");
         const { data: newListing, error: insertErr } = await supabase
@@ -536,8 +516,8 @@ export default function SellerDashboard() {
             listing_type: "flyer",
             location,
             contact_phone: finalContactPhone,
-            image_path: flyerStoragePath,
-            gallery_images: [flyerStoragePath],
+            image_path: flyerUrl,
+            gallery_images: [flyerUrl],
             video_url: finalVideoUrl,
             status: "pending",
           })
@@ -565,23 +545,13 @@ export default function SellerDashboard() {
         throw new Error("Please upload at least 1 product picture (up to 20 allowed).");
       }
 
-      // Step 1: Upload all product photos in parallel/batches
+      // Step 1: Upload all product photos in parallel/batches directly to Cloudinary CDN
       const uploadedPaths: string[] = [];
       for (let i = 0; i < productDrafts.length; i++) {
-        setUploadProgressText(`Uploading product photo ${i + 1} of ${productDrafts.length}...`);
+        setUploadProgressText(`Uploading product photo ${i + 1} of ${productDrafts.length} to CDN...`);
         const draft = productDrafts[i];
-        const fileExt = draft.file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const storagePath = `${user.id}/products/${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}.${fileExt}`;
-
-        const { error: uploadErr } = await supabase.storage
-          .from("listing-images")
-          .upload(storagePath, draft.file, {
-            cacheControl: "3600",
-            upsert: true,
-          });
-
-        if (uploadErr) throw new Error(`Failed to upload photo #${i + 1}: ${uploadErr.message}`);
-        uploadedPaths.push(storagePath);
+        const uploadedUrl = await uploadToCloudinary(draft.file, "varsmart/products");
+        uploadedPaths.push(uploadedUrl);
       }
 
       setUploadProgressText("Saving products to marketplace...");
