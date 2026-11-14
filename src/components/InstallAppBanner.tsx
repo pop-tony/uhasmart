@@ -124,7 +124,7 @@ export default function InstallAppBanner() {
           <div className="flex items-start gap-3">
             <div className="relative h-12 w-12 shrink-0 rounded-2xl overflow-hidden shadow-md border border-gray-100 bg-blue-600 flex items-center justify-center">
               <Image
-                src="/icon-192.png"
+                src="/icon-192.png?v=2"
                 alt="VarsMart App Icon"
                 width={48}
                 height={48}
@@ -180,7 +180,7 @@ export default function InstallAppBanner() {
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl overflow-hidden shadow-sm">
-                  <Image src="/icon-192.png" alt="VarsMart" width={36} height={36} />
+                  <Image src="/icon-192.png?v=2" alt="VarsMart" width={36} height={36} />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-gray-900">Install VarsMart on iOS</h3>

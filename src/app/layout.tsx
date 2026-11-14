@@ -54,7 +54,7 @@ export const metadata: Metadata = {
       "Buy, sell, and discover student hostels, gadgets, textbooks, food, and fashion in Ho, Volta Region. Direct WhatsApp and voice call contact with verified student sellers.",
     images: [
       {
-        url: "/icon-512.png",
+        url: "/icon-512.png?v=2",
         width: 512,
         height: 512,
         alt: "VarsMart - Campus Student Marketplace",
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     title: "VarsMart | Campus Student Marketplace & Hostels in Ho",
     description:
       "The trusted student commerce platform in Ho, Ghana. Discover hostels, textbooks, gadgets, and food deals on campus.",
-    images: ["/icon-512.png"],
+    images: ["/icon-512.png?v=2"],
   },
   robots: {
     index: true,
@@ -87,13 +87,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/favicon.ico" },
+      { url: "/icon.svg?v=2", type: "image/svg+xml" },
+      { url: "/icon-192.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/favicon.ico?v=2" },
     ],
-    shortcut: "/icon-192.png",
+    shortcut: "/icon-192.png?v=2",
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" },
     ],
   },
   verification: {
@@ -122,7 +122,7 @@ const jsonLd = {
       "@id": "https://varsmartgh.com/#organization",
       "name": "VarsMart Ghana",
       "url": "https://varsmartgh.com",
-      "logo": "https://varsmartgh.com/icon-512.png",
+      "logo": "https://varsmartgh.com/icon-512.png?v=2",
       "sameAs": ["https://varsmartgh.com"],
       "contactPoint": {
         "@type": "ContactPoint",
@@ -136,7 +136,7 @@ const jsonLd = {
       "@type": "LocalBusiness",
       "@id": "https://varsmartgh.com/#localbusiness",
       "name": "VarsMart Campus Marketplace",
-      "image": "https://varsmartgh.com/icon-512.png",
+      "image": "https://varsmartgh.com/icon-512.png?v=2",
       "url": "https://varsmartgh.com",
       "telephone": "+233591361005",
       "priceRange": "GH₵",
