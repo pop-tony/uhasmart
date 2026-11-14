@@ -321,6 +321,47 @@ export default function AdminDashboard() {
     setWorkingId("");
   }
 
+  async function handleDeleteUser(userId: string, userName: string) {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete the account for "${userName}"?\n\nThis will completely remove their login credentials, profile, and listings so they can sign up again with the exact same email or phone number.`
+      )
+    ) {
+      return;
+    }
+
+    setWorkingId(userId);
+    setError("");
+    setSuccess("");
+
+    try {
+      if (!supabase) throw new Error("Supabase client is not available.");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete user account.");
+      }
+
+      setSuccess(`Account for "${userName}" was permanently deleted. The student can now re-register with their same details.`);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete user account.");
+    } finally {
+      setWorkingId("");
+    }
+  }
+
   function copyAdminSql() {
     if (!currentUser) return;
     const sql = `INSERT INTO public.user_roles (user_id, role) VALUES ('${currentUser.id}', 'admin') ON CONFLICT DO NOTHING;`;
@@ -869,6 +910,16 @@ export default function AdminDashboard() {
                                 }`}
                               >
                                 {u.is_moderator ? "Revoke Mod" : "Make Mod"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={workingId === u.id}
+                                onClick={() => void handleDeleteUser(u.id, u.display_name)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50"
+                                title="Delete account permanently so student can re-register"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                <span>Delete User</span>
                               </button>
                             </>
                           ) : (

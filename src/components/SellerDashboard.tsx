@@ -545,6 +545,25 @@ export default function SellerDashboard() {
         throw new Error("Please upload at least 1 product picture (up to 20 allowed).");
       }
 
+      // Pre-validation for Product Batch Upload
+      if (pricingMode === "individual" && productDrafts.length > 1) {
+        for (let i = 0; i < productDrafts.length; i++) {
+          const draft = productDrafts[i];
+          const price = parseFloat(draft.priceGhs);
+          if (!draft.title.trim()) {
+            throw new Error(`Please enter a name for photo #${i + 1}.`);
+          }
+          if (isNaN(price) || price < 0) {
+            throw new Error(`Please enter a valid price for "${draft.title.trim() || `Item #${i + 1}`}".`);
+          }
+        }
+      } else if (pricingMode === "uniform") {
+        const basePrice = parseFloat(uniformPriceGhs || (productDrafts.length === 1 ? productDrafts[0].priceGhs : ""));
+        if (isNaN(basePrice) || basePrice < 0) {
+          throw new Error("Please enter a valid price in Ghana Cedis.");
+        }
+      }
+
       // Step 1: Upload all product photos in parallel/batches directly to Cloudinary CDN
       const uploadedPaths: string[] = [];
       for (let i = 0; i < productDrafts.length; i++) {
@@ -557,7 +576,11 @@ export default function SellerDashboard() {
       setUploadProgressText("Saving products to marketplace...");
 
       // Case B1: Post as a single product with a multi-photo gallery
-      if (multiPhotoPostMode === "single_gallery" || productDrafts.length === 1) {
+      // (Only when explicitly selected single_gallery AND uniform pricing mode, or when there is only 1 photo)
+      if (
+        productDrafts.length === 1 ||
+        (multiPhotoPostMode === "single_gallery" && pricingMode === "uniform")
+      ) {
         const basePrice = parseFloat(uniformPriceGhs || productDrafts[0].priceGhs);
         if (isNaN(basePrice) || basePrice < 0) {
           throw new Error("Please enter a valid price in Ghana Cedis.");
@@ -591,23 +614,30 @@ export default function SellerDashboard() {
       } else {
         // Case B2: Post as multiple individual products in one batch!
         const rowsToInsert = productDrafts.map((draft, idx) => {
-          const itemPrice = pricingMode === "individual" ? parseFloat(draft.priceGhs) : parseFloat(uniformPriceGhs);
-          const maxPrice = priceType === "range" && priceMaxGhs ? parseFloat(priceMaxGhs) : null;
-          const itemTitle = pricingMode === "individual" ? draft.title : `${uniformTitle || "Item"} #${idx + 1}`;
+          const itemPrice = pricingMode === "individual"
+            ? parseFloat(draft.priceGhs)
+            : parseFloat(uniformPriceGhs);
+          const maxPrice = pricingMode === "individual"
+            ? null
+            : (priceType === "range" && priceMaxGhs ? parseFloat(priceMaxGhs) : null);
+          const itemPriceType = pricingMode === "individual" ? "fixed" : priceType;
+          const itemTitle = pricingMode === "individual"
+            ? draft.title.trim()
+            : `${uniformTitle || "Item"} #${idx + 1}`;
 
           return {
             seller_id: user.id,
-            title: itemTitle.trim(),
+            title: itemTitle,
             description: description.trim(),
             category,
             price_ghs: isNaN(itemPrice) ? 0 : itemPrice,
             price_max_ghs: maxPrice,
-            price_type: priceType,
+            price_type: itemPriceType,
             listing_type: "product",
             location,
             contact_phone: finalContactPhone,
             image_path: uploadedPaths[idx],
-            gallery_images: uploadedPaths, // each item retains the batch gallery
+            gallery_images: [uploadedPaths[idx]], // CRITICAL FIX: Only attach this individual item's picture!
             video_url: finalVideoUrl,
             status: "pending",
           };
@@ -622,7 +652,7 @@ export default function SellerDashboard() {
         if (insertedRows) {
           setListings((prev) => [...(insertedRows as ListingItem[]), ...prev]);
         }
-        setSuccess(`Batch upload complete! Successfully listed ${rowsToInsert.length} products for review.`);
+        setSuccess(`Batch upload complete! Successfully listed ${rowsToInsert.length} individual products for review.`);
       }
 
       // Cleanup
@@ -1285,7 +1315,10 @@ export default function SellerDashboard() {
 
                         <button
                           type="button"
-                          onClick={() => setMultiPhotoPostMode("single_gallery")}
+                          onClick={() => {
+                            setMultiPhotoPostMode("single_gallery");
+                            setPricingMode("uniform");
+                          }}
                           className={`rounded-xl p-2.5 border text-left transition-all ${
                             multiPhotoPostMode === "single_gallery"
                               ? "border-blue-600 bg-white font-bold text-blue-700 shadow-sm"
@@ -1322,7 +1355,10 @@ export default function SellerDashboard() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setPricingMode("individual")}
+                          onClick={() => {
+                            setPricingMode("individual");
+                            setMultiPhotoPostMode("separate_products");
+                          }}
                           className={`rounded-xl p-2 border text-center transition-all ${
                             pricingMode === "individual"
                               ? "border-blue-600 bg-blue-50 font-bold text-blue-700"
