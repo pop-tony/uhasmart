@@ -3,7 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+// Known administrator email addresses with automatic super-admin override
 const ADMIN_EMAILS = [
+  "rmgsecure81@gmail.com",
+  "preciousdzihlornu4258@gmail.com",
+  "davidselormwalker@gmail.com",
   "uhasmartofficial@gmail.com",
   "admin@uhasmart.com",
   "admin@varsmartgh.com",
@@ -60,32 +64,49 @@ export async function POST(req: NextRequest) {
       auth: { persistSession: false },
     });
 
-    // 2. Check if caller has admin permissions
+    // 2. Comprehensive Admin Verification:
+    // Check A: Super admin email match
     const isSuperAdminEmail = ADMIN_EMAILS.includes(
-      (callerUser.email || "").toLowerCase()
+      (callerUser.email || "").toLowerCase().trim()
     );
 
+    // Check B: user_roles table (where VarsMart stores admin roles)
+    const { data: adminRoleRow } = await adminSupabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", callerUser.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    // Check C: profiles table attributes
     const { data: callerProfile } = await adminSupabase
       .from("profiles")
       .select("role, is_admin_role, is_moderator")
       .eq("id", callerUser.id)
       .maybeSingle();
 
+    // Check D: RPC is_admin using caller's authenticated token
     let rpcIsAdmin = false;
     try {
-      const { data } = await adminSupabase.rpc("is_admin");
-      rpcIsAdmin = Boolean(data);
+      const clientWithAuth = createClient(supabaseUrl, anonKey || serviceRoleKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false },
+      });
+      const { data: rpcRes } = await clientWithAuth.rpc("is_admin");
+      rpcIsAdmin = Boolean(rpcRes);
     } catch {
       rpcIsAdmin = false;
     }
 
     const isAuthorized =
       isSuperAdminEmail ||
+      Boolean(adminRoleRow) ||
       callerProfile?.role === "admin" ||
       callerProfile?.is_admin_role === true ||
       rpcIsAdmin;
 
     if (!isAuthorized) {
+      console.warn(`[AdminDeleteUser] Unauthorized delete attempt by user ${callerUser.id} (${callerUser.email})`);
       return NextResponse.json(
         { error: "Forbidden: You do not have administrator permissions to delete users." },
         { status: 403 }
@@ -112,24 +133,60 @@ export async function POST(req: NextRequest) {
 
     console.log(`[AdminDeleteUser] Admin ${callerUser.email} is deleting user ${targetUserId}...`);
 
-    // 4. Clean up all public records referencing target user
-    // A. Delete user's listings
-    await adminSupabase.from("listings").delete().eq("seller_id", targetUserId);
+    // 4. Clean up all public records referencing target user with proper foreign key order
+    // A. Find all listings owned by target user
+    const { data: userListings } = await adminSupabase
+      .from("listings")
+      .select("id")
+      .eq("seller_id", targetUserId);
+    const listingIds = (userListings || []).map((l) => l.id);
 
-    // B. Delete inquiries & inquiry messages
+    // B. Find all inquiries related to user (as buyer, as seller, or on their listings)
+    const inquiryIdSet = new Set<string>();
+    const { data: userInquiries } = await adminSupabase
+      .from("inquiries")
+      .select("id")
+      .or(`buyer_id.eq.${targetUserId},seller_id.eq.${targetUserId}`);
+    (userInquiries || []).forEach((i) => inquiryIdSet.add(i.id));
+
+    if (listingIds.length > 0) {
+      const { data: listingInquiries } = await adminSupabase
+        .from("inquiries")
+        .select("id")
+        .in("listing_id", listingIds);
+      (listingInquiries || []).forEach((i) => inquiryIdSet.add(i.id));
+    }
+    const allInquiryIds = Array.from(inquiryIdSet);
+
+    // C. Delete inquiry messages
+    if (allInquiryIds.length > 0) {
+      await adminSupabase.from("inquiry_messages").delete().in("inquiry_id", allInquiryIds);
+    }
     await adminSupabase.from("inquiry_messages").delete().eq("sender_id", targetUserId);
-    await adminSupabase.from("inquiries").delete().or(`buyer_id.eq.${targetUserId},seller_id.eq.${targetUserId}`);
 
-    // C. Delete reports
+    // D. Delete inquiries
+    if (allInquiryIds.length > 0) {
+      await adminSupabase.from("inquiries").delete().in("id", allInquiryIds);
+    }
+
+    // E. Delete listing reports (reports on their listings & reports filed by user)
+    if (listingIds.length > 0) {
+      await adminSupabase.from("listing_reports").delete().in("listing_id", listingIds);
+    }
     await adminSupabase.from("listing_reports").delete().eq("reported_by", targetUserId);
 
-    // D. Delete subscription payments
+    // F. Delete listings
+    if (listingIds.length > 0) {
+      await adminSupabase.from("listings").delete().in("id", listingIds);
+    }
+
+    // G. Delete subscription payments
     await adminSupabase.from("subscription_payments").delete().eq("seller_id", targetUserId);
 
-    // E. Delete user roles
+    // H. Delete user roles
     await adminSupabase.from("user_roles").delete().eq("user_id", targetUserId);
 
-    // F. Delete public profile
+    // I. Delete public profile
     await adminSupabase.from("profiles").delete().eq("id", targetUserId);
 
     // 5. Purge user from Supabase Auth (auth.users)

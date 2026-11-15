@@ -22,6 +22,8 @@ import {
   Copy,
   Check,
   Sparkles,
+  X,
+  UserX,
 } from "lucide-react";
 
 interface AdminStats {
@@ -106,6 +108,45 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [copiedSql, setCopiedSql] = useState(false);
+
+  // Modern Confirmation Modals State
+  const [userToDelete, setUserToDelete] = useState<{
+    id: string;
+    name: string;
+    phone?: string | null;
+    role?: string;
+  } | null>(null);
+  const [listingToDelete, setListingToDelete] = useState<{
+    id: string;
+    title: string;
+    price_ghs?: number;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [modalError, setModalError] = useState("");
+
+  // Toast Notification State
+  const [toast, setToast] = useState<{
+    type: "success" | "error" | "info";
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const showToast = useCallback(
+    (type: "success" | "error" | "info", title: string, message: string) => {
+      setToast({ type, title, message });
+      if (type === "success") {
+        setSuccess(message);
+        setError("");
+      } else if (type === "error") {
+        setError(message);
+        setSuccess("");
+      }
+      setTimeout(() => {
+        setToast((current) => (current?.title === title ? null : current));
+      }, 6000);
+    },
+    []
+  );
 
   const loadData = useCallback(async () => {
     if (!supabase) {
@@ -230,32 +271,43 @@ export default function AdminDashboard() {
 
     if (updateError) {
       setError(updateError.message);
+      showToast("error", "Update Failed", updateError.message);
     } else {
-      setSuccess(`Listing successfully marked as ${newStatus}.`);
+      const msg = `Listing successfully marked as ${newStatus}.`;
+      setSuccess(msg);
+      showToast("success", "Listing Updated", msg);
       await loadData();
     }
     setWorkingId("");
   }
 
-  async function handleDeleteListing(id: string) {
-    if (!supabase || !confirm("Are you sure you want to permanently delete this listing?")) return;
-    setWorkingId(id);
-    setError("");
-    setSuccess("");
+  async function confirmDeleteListing() {
+    if (!listingToDelete || !supabase) return;
+    setIsDeleting(true);
 
-    const { error: delError } = await supabase.rpc("admin_delete_listing", { p_listing_id: id });
-    if (delError) {
-      const { error: directErr } = await supabase.from("listings").delete().eq("id", id);
-      if (directErr) setError(directErr.message);
-      else {
-        setSuccess("Listing permanently deleted.");
-        await loadData();
+    try {
+      const { error: delError } = await supabase.rpc("admin_delete_listing", {
+        p_listing_id: listingToDelete.id,
+      });
+
+      if (delError) {
+        const { error: directErr } = await supabase
+          .from("listings")
+          .delete()
+          .eq("id", listingToDelete.id);
+        if (directErr) throw directErr;
       }
-    } else {
-      setSuccess("Listing permanently deleted.");
+
+      const title = listingToDelete.title;
+      setListingToDelete(null);
+      showToast("success", "Listing Deleted", `"${title}" was permanently removed.`);
       await loadData();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete listing.";
+      showToast("error", "Delete Failed", msg);
+    } finally {
+      setIsDeleting(false);
     }
-    setWorkingId("");
   }
 
   async function resolveReport(reportId: string, action: "dismiss" | "delete_listing", listingId?: string) {
@@ -276,10 +328,14 @@ export default function AdminDashboard() {
 
       if (repErr) throw repErr;
 
-      setSuccess(action === "delete_listing" ? "Listing removed and report resolved." : "Report marked as reviewed.");
+      const msg = action === "delete_listing" ? "Listing removed and report resolved." : "Report marked as reviewed.";
+      setSuccess(msg);
+      showToast("success", "Report Handled", msg);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to resolve report.");
+      const msg = err instanceof Error ? err.message : "Failed to resolve report.";
+      setError(msg);
+      showToast("error", "Action Failed", msg);
     } finally {
       setWorkingId("");
     }
@@ -294,8 +350,11 @@ export default function AdminDashboard() {
     const { data: newStatus, error: modErr } = await supabase.rpc("admin_toggle_moderator", { p_user_id: userId });
     if (modErr) {
       setError(modErr.message);
+      showToast("error", "Update Failed", modErr.message);
     } else {
-      setSuccess(newStatus ? "User granted moderator privileges." : "Moderator privileges revoked.");
+      const msg = newStatus ? "User granted moderator privileges." : "Moderator privileges revoked.";
+      setSuccess(msg);
+      showToast("success", "Moderator Updated", msg);
       await loadData();
     }
     setWorkingId("");
@@ -304,7 +363,9 @@ export default function AdminDashboard() {
   async function toggleAdminRole(userId: string) {
     if (!supabase) return;
     if (userId === currentUser?.id) {
-      setError("You cannot change your own admin status.");
+      const msg = "You cannot change your own admin status.";
+      setError(msg);
+      showToast("error", "Permission Blocked", msg);
       return;
     }
     setWorkingId(userId);
@@ -314,25 +375,20 @@ export default function AdminDashboard() {
     const { data: newStatus, error: admErr } = await supabase.rpc("admin_toggle_admin_role", { p_user_id: userId });
     if (admErr) {
       setError(admErr.message);
+      showToast("error", "Update Failed", admErr.message);
     } else {
-      setSuccess(newStatus ? "User granted Admin privileges." : "Admin privileges revoked.");
+      const msg = newStatus ? "User granted Admin privileges." : "Admin privileges revoked.";
+      setSuccess(msg);
+      showToast("success", "Admin Status Updated", msg);
       await loadData();
     }
     setWorkingId("");
   }
 
-  async function handleDeleteUser(userId: string, userName: string) {
-    if (
-      !confirm(
-        `Are you sure you want to permanently delete the account for "${userName}"?\n\nThis will completely remove their login credentials, profile, and listings so they can sign up again with the exact same email or phone number.`
-      )
-    ) {
-      return;
-    }
-
-    setWorkingId(userId);
-    setError("");
-    setSuccess("");
+  async function confirmDeleteUser() {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    setModalError("");
 
     try {
       if (!supabase) throw new Error("Supabase client is not available.");
@@ -345,7 +401,7 @@ export default function AdminDashboard() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId: userToDelete.id }),
       });
 
       const data = await res.json();
@@ -353,12 +409,20 @@ export default function AdminDashboard() {
         throw new Error(data.error || "Failed to delete user account.");
       }
 
-      setSuccess(`Account for "${userName}" was permanently deleted. The student can now re-register with their same details.`);
+      const deletedName = userToDelete.name;
+      setUserToDelete(null);
+      showToast(
+        "success",
+        "Account Permanently Deleted",
+        `Account for "${deletedName}" was deleted from Supabase Auth & database. The student can now re-register with their same details.`
+      );
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete user account.");
+      const msg = err instanceof Error ? err.message : "Failed to delete user account.";
+      setModalError(msg);
+      showToast("error", "Delete Failed", msg);
     } finally {
-      setWorkingId("");
+      setIsDeleting(false);
     }
   }
 
@@ -764,8 +828,9 @@ export default function AdminDashboard() {
                       <td className="py-3 px-4 text-right">
                         <button
                           type="button"
-                          onClick={() => void handleDeleteListing(l.id)}
-                          className="rounded-lg p-1.5 text-red-600 hover:bg-red-50"
+                          onClick={() => setListingToDelete({ id: l.id, title: l.title, price_ghs: Number(l.price_ghs) })}
+                          className="rounded-lg p-1.5 text-red-600 hover:bg-red-50 transition-colors"
+                          title="Delete listing"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -913,8 +978,16 @@ export default function AdminDashboard() {
                               </button>
                               <button
                                 type="button"
-                                disabled={workingId === u.id}
-                                onClick={() => void handleDeleteUser(u.id, u.display_name)}
+                                disabled={workingId === u.id || isDeleting}
+                                onClick={() => {
+                                  setModalError("");
+                                  setUserToDelete({
+                                    id: u.id,
+                                    name: u.display_name,
+                                    phone: u.phone_number,
+                                    role: u.role,
+                                  });
+                                }}
                                 className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50"
                                 title="Delete account permanently so student can re-register"
                               >
@@ -934,6 +1007,193 @@ export default function AdminDashboard() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Enhanced Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-red-100 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600 ring-8 ring-red-50">
+              <UserX className="h-7 w-7" />
+            </div>
+
+            <div className="mt-4 text-center">
+              <h3 className="text-lg font-black text-gray-900">Permanently Delete Account?</h3>
+              <p className="mt-1 text-xs text-gray-500">
+                This action cannot be undone. All user data and credentials will be removed.
+              </p>
+            </div>
+
+            {/* Target User Info Card */}
+            <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50/80 p-3.5 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500 font-medium">Student Name:</span>
+                <span className="font-bold text-gray-900">{userToDelete.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500 font-medium">Phone / WhatsApp:</span>
+                <span className="font-semibold text-gray-700">{userToDelete.phone || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500 font-medium">Account Role:</span>
+                <span className="font-semibold text-purple-700">
+                  {userToDelete.role === "seller" ? "Student Seller" : "Student Customer"}
+                </span>
+              </div>
+            </div>
+
+            {/* Informational Guidance */}
+            <div className="mt-3.5 rounded-2xl border border-blue-100 bg-blue-50/70 p-3 text-left">
+              <div className="flex items-start gap-2">
+                <Sparkles className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
+                <p className="text-[11px] leading-tight text-blue-900 font-medium">
+                  <strong>Why use this:</strong> Completely purges login credentials from Supabase Auth so if a student lost their password or email access, they can sign up fresh with their same email and phone number.
+                </p>
+              </div>
+            </div>
+
+            {modalError && (
+              <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 font-medium">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-600" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="mt-5 flex items-center gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  setUserToDelete(null);
+                  setModalError("");
+                }}
+                className="flex-1 rounded-xl border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+              >
+                Keep Account
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDeleteUser}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-600/25 hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Yes, Delete Account</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Listing Confirmation Modal */}
+      {listingToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-red-100 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600 ring-8 ring-red-50">
+              <Trash2 className="h-7 w-7" />
+            </div>
+
+            <div className="mt-4 text-center">
+              <h3 className="text-lg font-black text-gray-900">Delete Listing Permanently?</h3>
+              <p className="mt-1 text-xs text-gray-500">
+                This item will be completely removed from the marketplace immediately.
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-3 text-xs">
+              <p className="font-bold text-gray-900 line-clamp-1">{listingToDelete.title}</p>
+              {listingToDelete.price_ghs !== undefined && (
+                <p className="mt-0.5 font-bold text-blue-600">GH₵ {listingToDelete.price_ghs}</p>
+              )}
+            </div>
+
+            <div className="mt-5 flex items-center gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setListingToDelete(null)}
+                className="flex-1 rounded-xl border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={confirmDeleteListing}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 py-2.5 text-xs font-bold text-white shadow-lg shadow-red-600/25 hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <span>Delete Listing</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Toast Notification Banner */}
+      {toast && (
+        <aside
+          aria-label="Admin Notification"
+          className="fixed bottom-6 right-6 z-50 max-w-sm w-full animate-in slide-in-from-bottom-5 fade-in duration-300"
+        >
+          <div
+            className={`flex items-start gap-3 rounded-2xl p-4 shadow-2xl border backdrop-blur-xl ${
+              toast.type === "success"
+                ? "bg-slate-900/95 border-emerald-500/50 text-white shadow-emerald-900/20"
+                : toast.type === "error"
+                ? "bg-slate-900/95 border-rose-500/50 text-white shadow-rose-900/20"
+                : "bg-slate-900/95 border-blue-500/50 text-white shadow-blue-900/20"
+            }`}
+          >
+            <div
+              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${
+                toast.type === "success"
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : toast.type === "error"
+                  ? "bg-rose-500/20 text-rose-400"
+                  : "bg-blue-500/20 text-blue-400"
+              }`}
+            >
+              {toast.type === "success" ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : toast.type === "error" ? (
+                <AlertTriangle className="h-4 w-4" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-extrabold tracking-tight">{toast.title}</h4>
+              <p className="mt-0.5 text-[11px] leading-relaxed opacity-90">{toast.message}</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="rounded-lg p-1 opacity-70 hover:opacity-100 hover:bg-white/10 transition-opacity"
+              aria-label="Dismiss notification"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </aside>
       )}
     </div>
   );
