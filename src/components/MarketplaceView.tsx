@@ -42,9 +42,11 @@ export default function MarketplaceView() {
   const [searchInput, setSearchInput] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high">("newest");
   const [onlySaved, setOnlySaved] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const { wishlist, wishlistCount } = useWishlist();
   const shopSectionRef = useRef<HTMLDivElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync parameters from URL
   useEffect(() => {
@@ -357,284 +359,345 @@ export default function MarketplaceView() {
 
   return (
     <div className="bg-white text-slate-900 dark:bg-slate-950 dark:text-white transition-colors">
-      {/* 1. HERO SECTION (PrissAura style - full-bleed, spacious, bold) */}
-      {!isFiltering && (
-        <div className="relative w-full overflow-hidden bg-slate-900 text-white">
-          {/* Subtle gradient & campus image background */}
-          <div className="absolute inset-0 z-0">
-            <img
-              src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1600&q=80"
-              alt="Campus Marketplace"
-              className="h-full w-full object-cover opacity-25"
+      {/* 1. AIRBNB-STYLE MOBILE SEARCH CAPSULE (Mobile Only - Eliminates heavy hero clutter) */}
+      <div className="sm:hidden sticky top-16 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex items-center gap-2 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-1.5 shadow-sm shadow-slate-900/5 transition-all focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-600/10"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm shadow-blue-600/30">
+            <Search className="h-4 w-4" />
+          </div>
+
+          <div className="flex-1 min-w-0 pr-1">
+            <input
+              ref={mobileInputRef}
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Find hostels, gadgets, food..."
+              className="w-full bg-transparent text-xs font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-blue-950/60" />
           </div>
 
-          <div className="relative z-10 mx-auto max-w-5xl px-4 py-20 sm:py-28 text-center">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.3em] text-blue-400">
-              CAMPUS STUDENT MARKETPLACE &bull; HO, VOLTA
-            </p>
-            <h1 className="mb-6 text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-white">
-              Everything You Need
-            </h1>
-            <p className="mx-auto max-w-2xl text-sm sm:text-lg text-slate-300 leading-relaxed">
-              Buy and sell quality student gadgets, verified hostels, textbooks, food, and thrift fashion across Ho with direct WhatsApp contact.
-            </p>
-
-            {/* Hero CTA button */}
-            <div className="mt-8 flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => {
-                  shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="cursor-pointer rounded-full bg-blue-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
-              >
-                Explore Marketplace
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2. WHY SHOP WITH US (PrissAura style - clean whitespace, 3 bold stat counters) */}
-      {!isFiltering && (
-        <section className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 px-4 py-16 sm:py-20">
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="mb-4 text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-              Why Students Love VarsMart
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              The trusted student hub for Ho &amp; Volta Region. From pocket-friendly phones and laptops to verified hostel vacancies, connect directly with peer students with zero middlemen.
-            </p>
-
-            <div className="mt-12 grid grid-cols-3 gap-4 sm:gap-8 items-center">
-              <div>
-                <div className="mb-2 text-3xl sm:text-5xl font-black text-blue-600 dark:text-blue-400">
-                  100%
-                </div>
-                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-                  Student Verified
-                </p>
-                <p className="mt-1 hidden sm:block text-xs text-slate-500">
-                  Safe campus meetups
-                </p>
-              </div>
-
-              <div>
-                <div className="mb-2 text-3xl sm:text-5xl font-black text-blue-600 dark:text-blue-400">
-                  500+
-                </div>
-                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-                  Campus Listings
-                </p>
-                <p className="mt-1 hidden sm:block text-xs text-slate-500">
-                  Hostels, gadgets &amp; food
-                </p>
-              </div>
-
-              <div>
-                <div className="mb-2 text-3xl sm:text-5xl font-black text-blue-600 dark:text-blue-400">
-                  Direct
-                </div>
-                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
-                  WhatsApp &amp; Calls
-                </p>
-                <p className="mt-1 hidden sm:block text-xs text-slate-500">
-                  Zero commission fees
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 3. MAIN MARKETPLACE / SHOPPING AREA (PrissAura ShopPage Layout) */}
-      <div ref={shopSectionRef} className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        {/* Header + PrissAura Rounded Search Bar */}
-        <div className="mb-10 flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-end">
-          <div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
-              {searchQuery
-                ? "Search Results"
-                : onlySaved
-                ? "Saved Items"
-                : selectedCategory !== "all"
-                ? categories.find((c) => c.id === selectedCategory)?.name ?? selectedCategory
-                : "Shop All Products"}
-            </h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              {searchQuery
-                ? `Results for "${searchQuery}"`
-                : onlySaved
-                ? `${filteredProducts.length} items saved to your wishlist`
-                : selectedCategory !== "all"
-                ? `${filteredProducts.length} student listings available`
-                : "Everything you need in one clean place"}
-            </p>
-            {isFiltering && (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                  {filteredProducts.length} items found
-                </span>
-                <span className="text-slate-300 dark:text-slate-700">&bull;</span>
-                <button
-                  type="button"
-                  onClick={clearAllFilters}
-                  className="text-xs font-bold text-rose-500 hover:underline"
-                >
-                  Clear all filters
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Search & Location Controls */}
-          <div className="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            {/* PrissAura Search Pill */}
-            <form
-              onSubmit={handleSearchSubmit}
-              className="flex w-full sm:w-80 md:w-96 rounded-full border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus-within:border-blue-600 transition-colors shadow-sm"
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInput("");
+                setSearchQuery("");
+              }}
+              className="p-1 text-slate-400 hover:text-slate-600"
+              aria-label="Clear input"
             >
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search products, hostels, iPhone..."
-                className="flex-1 bg-transparent px-5 py-2.5 text-xs sm:text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput("");
-                    setSearchQuery("");
-                  }}
-                  className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  aria-label="Clear search input"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              <button
-                type="submit"
-                className="m-1 rounded-full bg-blue-600 p-2 text-white hover:bg-blue-700 transition"
-                aria-label="Submit search"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            </form>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
 
-            {/* Location Filter Pill */}
+          {/* Quick Filter toggle button */}
+          <button
+            type="button"
+            onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
+            className={`rounded-full p-2 border transition ${
+              selectedLocation !== "all" || sortBy !== "newest"
+                ? "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-950/60 dark:border-blue-800"
+                : "bg-white border-slate-200/80 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
+            }`}
+            aria-label="Filter locations and sort"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </form>
+
+        {/* Collapsible Mobile Location & Sort Dropdowns */}
+        {mobileFilterOpen && (
+          <div className="mt-2.5 grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="relative">
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full sm:w-auto appearance-none rounded-full border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-5 py-2.5 pr-9 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-blue-600 focus:outline-none cursor-pointer"
+                className="w-full appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-2 pl-3 pr-7 text-[11px] font-bold text-slate-700 dark:text-slate-300 outline-none"
               >
-                <option value="all">All Campus Locations</option>
+                <option value="all">All Ho Locations</option>
                 {campusLocations.map((loc) => (
                   <option key={loc.id} value={loc.name} className="dark:bg-slate-900">
                     {loc.name}
                   </option>
                 ))}
               </select>
-              <MapPin className="pointer-events-none absolute right-3.5 top-3.5 h-3.5 w-3.5 text-slate-400" />
+              <MapPin className="pointer-events-none absolute right-2.5 top-2.5 h-3 w-3 text-slate-400" />
             </div>
 
-            {/* Sort Pill */}
             <div className="relative">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="w-full sm:w-auto appearance-none rounded-full border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-5 py-2.5 pr-9 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-blue-600 focus:outline-none cursor-pointer"
+                className="w-full appearance-none rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-2 pl-3 pr-7 text-[11px] font-bold text-slate-700 dark:text-slate-300 outline-none"
               >
-                <option value="newest" className="dark:bg-slate-900">Newest</option>
+                <option value="newest" className="dark:bg-slate-900">Newest first</option>
                 <option value="price-low" className="dark:bg-slate-900">Price: Low to High</option>
                 <option value="price-high" className="dark:bg-slate-900">Price: High to Low</option>
               </select>
-              <SlidersHorizontal className="pointer-events-none absolute right-3.5 top-3.5 h-3.5 w-3.5 text-slate-400" />
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-3 w-3 text-slate-400" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2. DESKTOP HERO SECTION (Hidden on mobile for ultra-light mobile experience) */}
+      {!isFiltering && (
+        <div className="hidden sm:block">
+          <div className="relative w-full overflow-hidden bg-slate-900 text-white">
+            <div className="absolute inset-0 z-0">
+              <img
+                src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1600&q=80"
+                alt="Campus Marketplace"
+                className="h-full w-full object-cover opacity-25"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-blue-950/60" />
+            </div>
+
+            <div className="relative z-10 mx-auto max-w-5xl px-4 py-20 sm:py-24 text-center">
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.3em] text-blue-400">
+                CAMPUS STUDENT MARKETPLACE &bull; HO, VOLTA
+              </p>
+              <h1 className="mb-6 text-4xl sm:text-6xl font-black tracking-tight text-white">
+                Everything You Need
+              </h1>
+              <p className="mx-auto max-w-2xl text-sm sm:text-base text-slate-300 leading-relaxed">
+                Buy and sell quality student gadgets, verified hostels, textbooks, food, and thrift fashion across Ho with direct WhatsApp contact.
+              </p>
+
+              <div className="mt-8 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="cursor-pointer rounded-full bg-blue-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
+                >
+                  Explore Marketplace
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Trust & Stats Section */}
+          <section className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 px-4 py-12">
+            <div className="mx-auto max-w-4xl text-center">
+              <div className="grid grid-cols-3 gap-6 items-center">
+                <div>
+                  <div className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400">
+                    100%
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Student Verified
+                  </p>
+                </div>
+
+                <div>
+                  <div className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400">
+                    500+
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Campus Listings
+                  </p>
+                </div>
+
+                <div>
+                  <div className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400">
+                    Direct
+                  </div>
+                  <p className="mt-1 text-xs font-bold text-slate-800 dark:text-slate-200">
+                    WhatsApp &amp; Calls
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* 3. AIRBNB-STYLE MINIMALIST CATEGORY STRIP (Clean line icons + underline indicator) */}
+      <div className="sticky top-16 sm:top-20 z-20 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 transition-colors">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto pt-3 pb-2 scrollbar-none no-scrollbar">
+            {/* All Products */}
+            <button
+              type="button"
+              onClick={() => handleCategorySelect("all")}
+              className={`group flex flex-col items-center gap-1.5 pb-2 border-b-2 transition-all whitespace-nowrap active:scale-95 ${
+                selectedCategory === "all" && !onlySaved
+                  ? "border-blue-600 text-blue-600 dark:text-blue-400 font-bold"
+                  : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              }`}
+            >
+              <Package className="h-5 w-5 transition-transform group-hover:scale-110" />
+              <span className="text-[11px] font-semibold">All Items</span>
+            </button>
+
+            {/* Saved Wishlist */}
+            <button
+              type="button"
+              onClick={() => {
+                setOnlySaved((prev) => !prev);
+                setSelectedCategory("all");
+              }}
+              className={`group flex flex-col items-center gap-1.5 pb-2 border-b-2 transition-all whitespace-nowrap active:scale-95 ${
+                onlySaved
+                  ? "border-rose-500 text-rose-500 font-bold"
+                  : "border-transparent text-slate-500 hover:text-rose-500 dark:text-slate-400"
+              }`}
+            >
+              <div className="relative">
+                <Heart className={`h-5 w-5 transition-transform group-hover:scale-110 ${onlySaved ? "fill-current" : ""}`} />
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-bold text-white">
+                    {wishlistCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-semibold">Saved</span>
+            </button>
+
+            {/* All Categories as Airbnb Icons */}
+            {categories.map((c) => {
+              const Icon = c.icon;
+              const isSelected = selectedCategory === c.id && !onlySaved;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleCategorySelect(c.id)}
+                  className={`group flex flex-col items-center gap-1.5 pb-2 border-b-2 transition-all whitespace-nowrap active:scale-95 ${
+                    isSelected
+                      ? "border-blue-600 text-blue-600 dark:text-blue-400 font-bold"
+                      : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 transition-transform group-hover:scale-110" />
+                  <span className="text-[11px] font-semibold">{c.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. MAIN PRODUCT FEED */}
+      <div ref={shopSectionRef} className="mx-auto max-w-7xl px-3.5 py-6 sm:px-6 lg:px-8 sm:py-10">
+        {/* Desktop Search Bar (Visible on desktop only) */}
+        <div className="hidden sm:flex mb-8 items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+              {searchQuery
+                ? `Results for "${searchQuery}"`
+                : onlySaved
+                ? "Your Saved Items"
+                : selectedCategory !== "all"
+                ? categories.find((c) => c.id === selectedCategory)?.name
+                : "Explore Campus Deals"}
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-slate-500">
+              {isFiltering ? `${filteredProducts.length} items found` : "Top student listings across Ho"}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="flex w-72 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-1 pl-4"
+            >
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search deals..."
+                className="flex-1 bg-transparent text-xs text-slate-900 dark:text-white outline-none"
+              />
+              <button
+                type="submit"
+                className="rounded-full bg-blue-600 p-2 text-white hover:bg-blue-700"
+                aria-label="Submit search"
+              >
+                <Search className="h-3.5 w-3.5" />
+              </button>
+            </form>
+
+            <div className="relative">
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                className="appearance-none rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 py-2 pl-4 pr-8 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none"
+              >
+                <option value="all">All Locations</option>
+                {campusLocations.map((loc) => (
+                  <option key={loc.id} value={loc.name} className="dark:bg-slate-900">
+                    {loc.name}
+                  </option>
+                ))}
+              </select>
+              <MapPin className="pointer-events-none absolute right-3 top-2.5 h-3 w-3 text-slate-400" />
+            </div>
+
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="appearance-none rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 py-2 pl-4 pr-8 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none"
+              >
+                <option value="newest">Newest</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+              </select>
+              <SlidersHorizontal className="pointer-events-none absolute right-3 top-2.5 h-3 w-3 text-slate-400" />
             </div>
           </div>
         </div>
 
-        {/* Category Filter Pills (PrissAura CategoryFilter layout) */}
-        <div className="mb-12 flex gap-2.5 overflow-x-auto pb-3 scrollbar-none no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
-          <button
-            type="button"
-            onClick={() => handleCategorySelect("all")}
-            className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs sm:text-sm font-semibold transition active:scale-95 ${
-              selectedCategory === "all" && !onlySaved
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            All Products
-          </button>
+        {/* Active Filter Clear Prompt */}
+        {isFiltering && (
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+              Showing {filteredProducts.length} listings
+            </span>
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Clear all filters &times;
+            </button>
+          </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => {
-              setOnlySaved((prev) => !prev);
-              setSelectedCategory("all");
-            }}
-            className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 active:scale-95 ${
-              onlySaved
-                ? "bg-rose-500 text-white shadow-md shadow-rose-500/30"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <Heart className={`h-3.5 w-3.5 ${onlySaved ? "fill-white" : "text-rose-500"}`} />
-            <span>Saved ({wishlistCount})</span>
-          </button>
-
-          {categories.map((c) => {
-            const isSelected = selectedCategory === c.id && !onlySaved;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => handleCategorySelect(c.id)}
-                className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs sm:text-sm font-semibold transition active:scale-95 ${
-                  isSelected
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
-                }`}
-              >
-                {c.name}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* CONTENT VIEW: Filtered Grid OR Curated Multi-Section Architecture */}
+        {/* Product Grid Content: Skeleton / Empty / Filtered / Multi-Section */}
         {loading ? (
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
               <ProductSkeletonCard key={n} />
             ))}
           </div>
         ) : isFiltering ? (
-          /* Filtered or Searched Grid */
           filteredProducts.length === 0 ? (
-            <div className="py-24 text-center">
+            <div className="py-20 text-center">
               <Package className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" />
-              <h3 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
+              <h3 className="mt-4 text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                 No products found
               </h3>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                We couldn&apos;t find any items matching your current filters. Try searching with different keywords.
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-sm mx-auto">
+                No listings matched your criteria. Try adjusting your search query or location filter.
               </p>
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="mt-6 rounded-full bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition"
+                className="mt-5 rounded-full bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700"
               >
                 Clear all filters
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
               {filteredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -651,16 +714,16 @@ export default function MarketplaceView() {
             </div>
           )
         ) : (
-          /* Curated Themed Sections (PrissAura's standout aesthetic!) */
-          <div className="space-y-16 sm:space-y-20">
+          /* Multi-Section Themed Architecture */
+          <div className="space-y-12 sm:space-y-16">
             {homeSections.map((section) => (
-              <div key={section.id} className="space-y-6">
-                <div className="flex items-end justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
+              <div key={section.id} className="space-y-4">
+                <div className="flex items-end justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
                   <div>
-                    <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                    <h3 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                       {section.title}
                     </h3>
-                    <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                    <p className="text-[11px] sm:text-xs text-slate-500">
                       {section.subtitle}
                     </p>
                   </div>
@@ -668,16 +731,16 @@ export default function MarketplaceView() {
                     <button
                       type="button"
                       onClick={() => handleCategorySelect(section.category)}
-                      className="hidden sm:inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 transition"
                     >
-                      <span>View All</span>
-                      <ArrowRight className="h-4 w-4" />
+                      <span>See all</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
 
-                {/* Uncluttered Product Grid */}
-                <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+                {/* Airbnb-style 2-col on mobile, 4-col on desktop */}
+                <div className="grid grid-cols-2 gap-3.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
                   {section.products.slice(0, 4).map((product) => (
                     <ProductCard
                       key={product.id}
@@ -692,26 +755,13 @@ export default function MarketplaceView() {
                     />
                   ))}
                 </div>
-
-                {/* Mobile View All Button */}
-                {section.category !== "all" && section.products.length > 4 && (
-                  <div className="text-center sm:hidden pt-2">
-                    <button
-                      type="button"
-                      onClick={() => handleCategorySelect(section.category)}
-                      className="rounded-full border border-slate-300 dark:border-slate-700 px-6 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200"
-                    >
-                      View All {section.title} &rarr;
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* 4. PRODUCT DETAILS & INQUIRY MODAL (PrissAura ProductDetail Layout) */}
+      {/* 5. PRODUCT DETAILS & INQUIRY MODAL */}
       {inquireProduct && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
@@ -727,9 +777,9 @@ export default function MarketplaceView() {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-5 sm:p-8 space-y-6">
+            <div className="flex-1 overflow-y-auto px-5 py-4 sm:p-8 space-y-5">
               {/* Header: Category Pill & Close */}
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   {modalCategoryObj?.name ?? inquireProduct.category}
                 </span>
@@ -749,10 +799,10 @@ export default function MarketplaceView() {
                   <button
                     type="button"
                     onClick={() => setActiveMediaTab("photos")}
-                    className={`flex-1 py-2 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-1.5 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       activeMediaTab === "photos"
                         ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900"
+                        : "text-slate-500 dark:text-slate-400"
                     }`}
                   >
                     <Images className="h-3.5 w-3.5" />
@@ -761,10 +811,10 @@ export default function MarketplaceView() {
                   <button
                     type="button"
                     onClick={() => setActiveMediaTab("video")}
-                    className={`flex-1 py-2 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-1.5 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       activeMediaTab === "video"
                         ? "bg-rose-600 text-white shadow-sm"
-                        : "text-slate-600 dark:text-slate-300 hover:text-rose-600"
+                        : "text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     <Play className="h-3.5 w-3.5 fill-current" />
@@ -816,7 +866,7 @@ export default function MarketplaceView() {
 
                   {/* Thumbnail Row */}
                   {galleryPhotos.length > 1 && (
-                    <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
+                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
                       {galleryPhotos.map((photoPath, idx) => {
                         const thumbUrl = getListingImageUrl(photoPath);
                         const isSelected = activeGalleryIndex === idx;
@@ -825,7 +875,7 @@ export default function MarketplaceView() {
                             key={idx}
                             type="button"
                             onClick={() => setActiveGalleryIndex(idx)}
-                            className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition ${
+                            className={`h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 transition ${
                               isSelected
                                 ? "border-blue-600 ring-2 ring-blue-600/30 scale-105"
                                 : "border-transparent opacity-70 hover:opacity-100"
@@ -844,10 +894,10 @@ export default function MarketplaceView() {
 
               {/* Title, Location & Price */}
               <div>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-snug">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-snug">
                   {inquireProduct.title}
                 </h2>
-                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <MapPin className="h-3.5 w-3.5 text-slate-400" />
                   <span>{inquireProduct.location}</span>
                   <span>&bull;</span>
@@ -855,35 +905,35 @@ export default function MarketplaceView() {
                     Student Verified
                   </span>
                 </div>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-slate-900 dark:text-white">
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400 mr-1">GH₵</span>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+                    <span className="text-base font-bold text-blue-600 dark:text-blue-400 mr-1">GH₵</span>
                     {priceDisplay}
                   </span>
                 </div>
               </div>
 
               {/* Description */}
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-5">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                   Description
                 </h4>
-                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
                   {inquireProduct.description || "No description provided by seller."}
                 </p>
               </div>
 
               {/* Seller Card */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-4">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-base shadow-sm">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-sm shadow-sm">
                     {modalSellerName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-slate-900 dark:text-white">
+                    <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
                       {modalSellerName}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       Campus Vendor &bull; {inquireProduct.location}
                     </p>
                   </div>
@@ -891,14 +941,14 @@ export default function MarketplaceView() {
               </div>
 
               {/* Actions: Direct WhatsApp & Call */}
-              <div className="space-y-3 pt-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-2.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {modalWhatsAppUrl && (
                     <a
                       href={modalWhatsAppUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 active:scale-95 transition"
+                      className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 active:scale-95 transition"
                     >
                       <Phone className="h-4 w-4" />
                       <span>Chat on WhatsApp</span>
@@ -907,7 +957,7 @@ export default function MarketplaceView() {
                   {modalCallUrl && (
                     <a
                       href={modalCallUrl}
-                      className="flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition"
+                      className="flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition"
                     >
                       <PhoneCall className="h-4 w-4" />
                       <span>Call Seller</span>
@@ -916,27 +966,27 @@ export default function MarketplaceView() {
                 </div>
 
                 {/* Collapsible In-App Messaging */}
-                <div className="pt-2 text-center">
+                <div className="pt-1 text-center">
                   <button
                     type="button"
                     onClick={() => setShowInAppForm(!showInAppForm)}
-                    className="text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 inline-flex items-center gap-1.5"
+                    className="text-[11px] font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 inline-flex items-center gap-1"
                   >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    <span>Or send in-app message on VarsMart</span>
-                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showInAppForm ? "rotate-180" : ""}`} />
+                    <MessageSquare className="h-3 w-3" />
+                    <span>Send in-app message on VarsMart</span>
+                    <ChevronDown className={`h-3 w-3 transition-transform ${showInAppForm ? "rotate-180" : ""}`} />
                   </button>
 
                   {showInAppForm && (
-                    <form onSubmit={handleSendInquiry} className="mt-4 space-y-3 text-left">
+                    <form onSubmit={handleSendInquiry} className="mt-3 space-y-2.5 text-left">
                       {inquiryNotice && (
-                        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-3 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4 shrink-0" />
                           <span>{inquiryNotice}</span>
                         </div>
                       )}
                       {inquiryError && (
-                        <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 p-3 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                        <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 p-2.5 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 shrink-0" />
                           <span>{inquiryError}</span>
                         </div>
@@ -947,12 +997,12 @@ export default function MarketplaceView() {
                         value={inquiryBody}
                         onChange={(e) => setInquiryBody(e.target.value)}
                         placeholder={`Hi ${modalSellerName}, is this available? Where on campus can we meet?`}
-                        className="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
                       />
                       <button
                         type="submit"
                         disabled={sendingInquiry}
-                        className="w-full rounded-full bg-slate-900 dark:bg-white py-3 text-xs font-bold text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-50 transition"
+                        className="w-full rounded-full bg-slate-900 dark:bg-white py-2.5 text-xs font-bold text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-50 transition"
                       >
                         {sendingInquiry ? "Sending..." : "Send In-App Message"}
                       </button>

@@ -9,6 +9,8 @@ import {
   FileText,
   Play,
   Home,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { categories, getCategoryIcon } from "@/lib/data";
 import { getListingImageUrl } from "@/lib/storage";
@@ -51,6 +53,8 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
   const CategoryIcon = getCategoryIcon(product.category);
   const sellerName = product.profiles?.business_name || product.profiles?.display_name || "Campus Seller";
   const [imageError, setImageError] = useState(false);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   const { isWishlisted, toggleWishlist } = useWishlist();
   const wishlisted = isWishlisted(product.id);
@@ -58,12 +62,43 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
   const isFlyer = product.listing_type === "flyer";
   const isHostel = product.category === "hostels";
 
-  // Build primary image URL
+  // Build full array of valid images
   const allImagePaths = [product.image_path, ...(product.gallery_images || [])].filter(
     Boolean
   ) as string[];
-  const primaryImageUrl =
-    allImagePaths.length > 0 ? getListingImageUrl(allImagePaths[0]) : null;
+  const totalImages = allImagePaths.length;
+  const currentImageUrl =
+    totalImages > 0 ? getListingImageUrl(allImagePaths[activeImageIdx]) : null;
+
+  // Touch Swipe handlers for Airbnb-like card swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || totalImages <= 1) return;
+    const deltaX = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(deltaX) > 35) {
+      if (deltaX > 0) {
+        // swipe left -> next image
+        setActiveImageIdx((prev) => (prev + 1) % totalImages);
+      } else {
+        // swipe right -> previous image
+        setActiveImageIdx((prev) => (prev - 1 + totalImages) % totalImages);
+      }
+    }
+    setTouchStartX(null);
+  };
+
+  const handleNextPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIdx((prev) => (prev + 1) % totalImages);
+  };
+
+  const handlePrevPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveImageIdx((prev) => (prev - 1 + totalImages) % totalImages);
+  };
 
   // Format price display (single vs range)
   const isRange =
@@ -92,11 +127,15 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
         }
       }}
     >
-      {/* Aspect-Square Image Container with smooth zoom & rounded corners */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/60 shadow-sm transition-all duration-300 group-hover:shadow-md">
-        {primaryImageUrl && !imageError ? (
+      {/* Aspect-Square Image Container with touch swiping & Airbnb-style pagination dots */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="relative aspect-square w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/60 shadow-sm transition-all duration-300 group-hover:shadow-md"
+      >
+        {currentImageUrl && !imageError ? (
           <img
-            src={primaryImageUrl}
+            src={currentImageUrl}
             alt={product.title}
             onError={() => setImageError(true)}
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
@@ -113,30 +152,30 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
 
         {/* Minimal Floating Badge on top-left (Flyer, Hostel, or Video) */}
         {isFlyer ? (
-          <div className="absolute left-3 top-3 z-10 rounded-full bg-purple-600/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur-md flex items-center gap-1">
+          <div className="absolute left-2.5 top-2.5 z-10 rounded-full bg-purple-600/90 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur-md flex items-center gap-1">
             <FileText className="h-3 w-3" />
             <span>Flyer</span>
           </div>
         ) : isHostel ? (
-          <div className="absolute left-3 top-3 z-10 rounded-full bg-blue-600/90 px-3 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-md flex items-center gap-1">
+          <div className="absolute left-2.5 top-2.5 z-10 rounded-full bg-blue-600/90 px-2.5 py-0.5 text-[9px] font-bold text-white shadow-sm backdrop-blur-md flex items-center gap-1">
             <Home className="h-3 w-3" />
             <span>Hostel</span>
           </div>
         ) : product.video_url ? (
-          <div className="absolute left-3 top-3 z-10 rounded-full bg-rose-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-md flex items-center gap-1">
+          <div className="absolute left-2.5 top-2.5 z-10 rounded-full bg-rose-600/90 px-2.5 py-0.5 text-[9px] font-bold text-white shadow-sm backdrop-blur-md flex items-center gap-1">
             <Play className="h-3 w-3 fill-current" />
             <span>Video</span>
           </div>
         ) : null}
 
-        {/* Wishlist Heart on top-right (Clean & responsive like PrissAura) */}
+        {/* Wishlist Heart on top-right */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             toggleWishlist(product.id);
           }}
-          className={`absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-md shadow-sm transition-all duration-200 active:scale-90 ${
+          className={`absolute right-2.5 top-2.5 z-10 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full backdrop-blur-md shadow-sm transition-all duration-200 active:scale-90 ${
             wishlisted
               ? "bg-rose-500 text-white shadow-rose-500/30 scale-105"
               : "bg-white/80 dark:bg-black/80 text-slate-700 dark:text-slate-300 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 hover:text-rose-500 hover:bg-white"
@@ -145,35 +184,71 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
           aria-label="Wishlist toggle"
         >
           <Heart
-            className={`h-4 w-4 transition-transform ${
+            className={`h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform ${
               wishlisted ? "fill-current scale-110" : ""
             }`}
           />
         </button>
+
+        {/* Multi-Photo Desktop Chevrons & Airbnb-style Dots */}
+        {totalImages > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrevPhoto}
+              className="hidden sm:group-hover:flex absolute left-2 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-full bg-white/90 dark:bg-black/90 shadow-md text-slate-800 dark:text-white backdrop-blur-md transition hover:scale-105"
+              aria-label="Previous photo"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNextPhoto}
+              className="hidden sm:group-hover:flex absolute right-2 top-1/2 -translate-y-1/2 z-10 h-7 w-7 items-center justify-center rounded-full bg-white/90 dark:bg-black/90 shadow-md text-slate-800 dark:text-white backdrop-blur-md transition hover:scale-105"
+              aria-label="Next photo"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            {/* Indicator Dots */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-full bg-black/30 px-2 py-0.5 backdrop-blur-sm">
+              {allImagePaths.slice(0, 5).map((_, i) => (
+                <span
+                  key={i}
+                  className={`rounded-full transition-all duration-200 ${
+                    i === activeImageIdx
+                      ? "h-1.5 w-2.5 bg-white scale-110"
+                      : "h-1.5 w-1.5 bg-white/60"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Typography & Details below Image (PrissAura Clean Design) */}
-      <div className="mt-3 sm:mt-3.5 flex flex-col">
+      {/* Typography & Details below Image */}
+      <div className="mt-2.5 sm:mt-3 flex flex-col">
         {/* Category uppercase tracking */}
         <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
           {categoryObj?.name ?? product.category}
         </p>
 
         {/* Title */}
-        <h3 className="mt-1 text-sm sm:text-base font-semibold text-slate-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+        <h3 className="mt-0.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {product.title}
         </h3>
 
         {/* Location & Seller */}
-        <div className="mt-1 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 truncate">
-          <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <div className="mt-0.5 flex items-center gap-1 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+          <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
           <span className="truncate">{product.location}</span>
         </div>
 
         {/* Price & WhatsApp Action Row */}
-        <div className="mt-2.5 flex items-center justify-between gap-2">
-          <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-            <span className="text-xs font-bold text-blue-600 dark:text-blue-400 mr-1">GH₵</span>
+        <div className="mt-1.5 flex items-center justify-between gap-1.5">
+          <p className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight">
+            <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 mr-0.5">GH₵</span>
             {priceDisplay}
           </p>
 
@@ -184,14 +259,14 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white px-2.5 py-1 text-[11px] font-bold transition-all shadow-sm active:scale-95"
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white px-2 py-0.5 text-[10px] sm:text-[11px] font-bold transition-all shadow-sm active:scale-95"
               title="Chat with seller on WhatsApp"
             >
-              <Phone className="h-3 w-3 shrink-0" />
-              <span className="hidden sm:inline">WhatsApp</span>
+              <Phone className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+              <span>Chat</span>
             </a>
           ) : (
-            <span className="text-[11px] font-medium text-slate-400">View</span>
+            <span className="text-[10px] font-medium text-slate-400">View</span>
           )}
         </div>
       </div>

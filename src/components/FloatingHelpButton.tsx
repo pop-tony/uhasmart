@@ -77,12 +77,12 @@ export default function FloatingHelpButton() {
   return (
     <>
       {/* Floating Help Trigger Button */}
-      {/* Positioned above mobile dock (bottom-20) on mobile, and bottom-6 on desktop */}
+      {/* Positioned on desktop bottom-right (hidden on mobile to prevent stack clutter with mobile dock) */}
       <aside aria-label="Customer Support Desk">
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className={`fixed bottom-20 right-3.5 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 rounded-full px-3.5 py-3 sm:px-4 sm:py-3.5 shadow-2xl transition-all duration-300 active:scale-95 border backdrop-blur-md ${
+          className={`hidden md:flex fixed bottom-6 right-6 z-40 items-center gap-2 rounded-full px-4 py-3.5 shadow-2xl transition-all duration-300 active:scale-95 border backdrop-blur-md ${
             isOpen
               ? "bg-slate-900 text-white border-slate-700 dark:bg-white dark:text-slate-900"
               : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-400/30 shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-105"
