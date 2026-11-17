@@ -171,8 +171,8 @@ export default function MarketplaceView() {
       {
         id: "trending",
         category: "all",
-        title: "Featured Campus Deals",
-        subtitle: "Top student picks and verified listings across campus",
+        title: "Popular Products",
+        subtitle: "Top student picks and trending listings across campus",
         products: activeItems.slice(0, 8),
       },
       {
