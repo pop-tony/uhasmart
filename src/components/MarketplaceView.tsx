@@ -1,11 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import ProductCard, { ProductItem } from "@/components/ProductCard";
 import ProductSkeletonCard from "@/components/ProductSkeletonCard";
-import SafetyBanner from "@/components/SafetyBanner";
 import HostelFinderSection from "@/components/HostelFinderSection";
 import { categories, campusLocations, getCategoryIcon } from "@/lib/data";
 import { createClient } from "@/lib/supabase/client";
@@ -21,17 +20,12 @@ import {
   Phone,
   PhoneCall,
   MessageSquare,
-  Store,
   ChevronDown,
-  ShieldCheck,
   Images,
-  FileText,
   Heart,
-  Flame,
-  Home,
   SlidersHorizontal,
   Play,
-  ExternalLink,
+  ArrowRight,
 } from "lucide-react";
 import { createWhatsAppUrl, createCallUrl, parseSellerPhones } from "@/lib/whatsapp";
 import { parseVideoInfo } from "@/lib/video";
@@ -46,21 +40,26 @@ export default function MarketplaceView() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high">("newest");
   const [onlySaved, setOnlySaved] = useState(false);
-  const [showHostelBanner, setShowHostelBanner] = useState(false);
+  const [showHostelPortal, setShowHostelPortal] = useState(false);
 
   const { wishlist, wishlistCount } = useWishlist();
+  const shopSectionRef = useRef<HTMLDivElement>(null);
 
   // Sync parameters from URL
   useEffect(() => {
     const cat = searchParams.get("category");
     if (cat) {
       setSelectedCategory(cat);
-      if (cat === "hostels") setShowHostelBanner(true);
+      if (cat === "hostels") setShowHostelPortal(true);
     }
     const q = searchParams.get("query");
-    if (q) setSearchQuery(q);
+    if (q) {
+      setSearchQuery(q);
+      setSearchInput(q);
+    }
     const loc = searchParams.get("location");
     if (loc) {
       const matched = campusLocations.find((l) => l.id === loc || l.name === loc);
@@ -159,6 +158,101 @@ export default function MarketplaceView() {
       });
   }, [listings, selectedCategory, selectedLocation, searchQuery, sortBy, onlySaved, wishlist]);
 
+  const isFiltering = selectedCategory !== "all" || searchQuery.trim() !== "" || onlySaved || selectedLocation !== "all";
+
+  // Curated category sections when viewing "All" with no active search
+  const homeSections = useMemo(() => {
+    if (isFiltering) return [];
+
+    const activeItems = listings.filter((item) => isSellerActive(item));
+
+    const sectionDefs = [
+      {
+        id: "trending",
+        category: "all",
+        title: "Featured Campus Deals",
+        subtitle: "Top student picks and verified listings across campus",
+        products: activeItems.slice(0, 8),
+      },
+      {
+        id: "hostels",
+        category: "hostels",
+        title: "Hostels & Accommodations",
+        subtitle: "Verified student hostels, self-contain rooms & apartments in Ho",
+        products: activeItems.filter((i) => i.category === "hostels"),
+      },
+      {
+        id: "electronics",
+        category: "electronics",
+        title: "Tech & Gadgets",
+        subtitle: "Laptops, smartphones, chargers, earbuds & campus tech essentials",
+        products: activeItems.filter((i) => i.category === "electronics"),
+      },
+      {
+        id: "fashion",
+        category: "fashion",
+        title: "Fashion & Thrift Wears",
+        subtitle: "Campus thrift shoes, sneakers, bags, watches & stylish outfits",
+        products: activeItems.filter((i) => i.category === "fashion"),
+      },
+      {
+        id: "food",
+        category: "food",
+        title: "Campus Food & Drinks",
+        subtitle: "Hot meals, fast chops, smoothies, snacks & dorm deliveries",
+        products: activeItems.filter((i) => i.category === "food" || i.category === "groceries"),
+      },
+      {
+        id: "academic",
+        category: "academic-services",
+        title: "Academic Books & Tools",
+        subtitle: "Textbooks, medical notes, lab coats, dissection kits & printing",
+        products: activeItems.filter(
+          (i) => i.category === "academic-services" || i.category === "printing"
+        ),
+      },
+      {
+        id: "beauty",
+        category: "salons-barbers",
+        title: "Grooming, Salons & Beauty",
+        subtitle: "Braiding, barbering, hair care, cosmetics & personal grooming",
+        products: activeItems.filter(
+          (i) => i.category === "salons-barbers" || i.category === "beauty"
+        ),
+      },
+    ];
+
+    return sectionDefs.filter((s) => s.products.length > 0);
+  }, [listings, isFiltering]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(searchInput.trim());
+    if (shopSectionRef.current) {
+      shopSectionRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setSelectedCategory("all");
+    setSelectedLocation("all");
+    setOnlySaved(false);
+    setShowHostelPortal(false);
+  };
+
+  const handleCategorySelect = (catId: string) => {
+    setSelectedCategory(catId);
+    setOnlySaved(false);
+    if (catId === "hostels") {
+      setShowHostelPortal(true);
+    }
+    if (shopSectionRef.current) {
+      shopSectionRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   async function handleSendInquiry(e: React.FormEvent) {
     e.preventDefault();
     if (!supabase || !inquireProduct) return;
@@ -216,7 +310,7 @@ export default function MarketplaceView() {
   const modalSellerName =
     inquireProduct?.profiles?.business_name ||
     inquireProduct?.profiles?.display_name ||
-    "Campus Vendor";
+    "Campus Seller";
 
   const sellerPhones = useMemo(() => {
     return parseSellerPhones(
@@ -253,12 +347,12 @@ export default function MarketplaceView() {
       ? `${Number(inquireProduct.price_ghs).toFixed(0)} - ${Number(
           inquireProduct.price_max_ghs
         ).toFixed(0)}`
-      : Number(inquireProduct.price_ghs).toFixed(2)
-    : "0.00";
+      : Number(inquireProduct.price_ghs).toFixed(0)
+    : "0";
 
   const modalWhatsAppMessage = isFlyer
     ? `Hello ${modalSellerName}, I saw your promotional flyer "${inquireProduct?.title}" on VarsMart. I would like to find out more details!`
-    : `Hello ${modalSellerName}, I saw your listing "${inquireProduct?.title}" (GHS ${priceDisplay}) on VarsMart. Is it still available?`;
+    : `Hello ${modalSellerName}, I saw your listing "${inquireProduct?.title}" (GH₵ ${priceDisplay}) on VarsMart. Is it still available?`;
 
   const modalWhatsAppUrl = inquireProduct && sellerPhones.whatsappPhone
     ? createWhatsAppUrl(sellerPhones.whatsappPhone, modalWhatsAppMessage)
@@ -268,227 +362,304 @@ export default function MarketplaceView() {
     ? createCallUrl(sellerPhones.callPhone)
     : null;
 
-  const moreSellerItems = useMemo(() => {
-    if (!inquireProduct) return [];
-    return listings
-      .filter((item) => item.seller_id === inquireProduct.seller_id && item.id !== inquireProduct.id)
-      .slice(0, 4);
-  }, [listings, inquireProduct]);
-
   return (
-    <div className="py-4 sm:py-8">
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
-        {/* Marketplace Header Banner */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 dark:bg-blue-950/60 px-3 py-1 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-              <Flame className="h-3.5 w-3.5 text-amber-500" />
-              <span>Campus &amp; City Deals &bull; Ho, Volta Region</span>
-            </div>
-            <h1 className="mt-2 text-2xl sm:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-              VarsMart Marketplace
-            </h1>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-slate-400">
-              Buy, sell, and discover student hostels, gadgets, food, fashion, and campus services.
-            </p>
-          </div>
-
-          {/* Quick Hostel Portal Toggle Button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (selectedCategory === "hostels" && showHostelBanner) {
-                setShowHostelBanner(false);
-              } else {
-                setSelectedCategory("hostels");
-                setShowHostelBanner(true);
-              }
-            }}
-            className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold transition-all shadow-sm active:scale-95 ${
-              showHostelBanner || selectedCategory === "hostels"
-                ? "bg-blue-600 text-white shadow-blue-500/25"
-                : "border border-blue-200 dark:border-blue-900 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 hover:bg-blue-50"
-            }`}
-          >
-            <Home className="h-4 w-4" />
-            <span>Find Hostels &amp; Rooms</span>
-          </button>
-        </div>
-
-        {/* Dedicated Hostel Feature Section (Toggled or visible when category is hostels) */}
-        {(showHostelBanner || selectedCategory === "hostels") && (
-          <div className="mt-4 animate-in fade-in zoom-in-95 duration-200">
-            <HostelFinderSection />
-          </div>
-        )}
-
-        {/* Search & Location Bar */}
-        <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 rounded-3xl glass-card p-2 sm:p-3 shadow-lg shadow-blue-900/5 dark:shadow-black/30 border border-blue-100 dark:border-slate-800">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-gray-400 dark:text-slate-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search hostels, iPhone, calculators, textbooks, food..."
-              className="w-full rounded-2xl border border-gray-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 py-2.5 pl-10 pr-4 text-xs font-medium text-gray-900 dark:text-white focus:border-blue-600 focus:bg-white dark:focus:bg-slate-900 focus:outline-none"
+    <div className="bg-white text-slate-900 dark:bg-slate-950 dark:text-white transition-colors">
+      {/* 1. HERO SECTION (PrissAura style - full-bleed, spacious, bold) */}
+      {!isFiltering && (
+        <div className="relative w-full overflow-hidden bg-slate-900 text-white">
+          {/* Subtle gradient & campus image background */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1600&q=80"
+              alt="Campus Marketplace"
+              className="h-full w-full object-cover opacity-25"
             />
-            {searchQuery && (
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-blue-950/60" />
+          </div>
+
+          <div className="relative z-10 mx-auto max-w-5xl px-4 py-20 sm:py-28 text-center">
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.3em] text-blue-400">
+              CAMPUS STUDENT MARKETPLACE &bull; HO, VOLTA
+            </p>
+            <h1 className="mb-6 text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-white">
+              Everything You Need
+            </h1>
+            <p className="mx-auto max-w-2xl text-sm sm:text-lg text-slate-300 leading-relaxed">
+              Buy and sell quality student gadgets, verified hostels, textbooks, food, and thrift fashion across Ho with direct WhatsApp contact.
+            </p>
+
+            {/* PrissAura dual rounded-full pill buttons */}
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-2.5 text-xs font-bold text-gray-400 hover:text-gray-600"
+                onClick={() => {
+                  shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="w-full sm:w-auto cursor-pointer rounded-full bg-blue-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
               >
-                &times;
+                Shop Now
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory("hostels");
+                  setShowHostelPortal(true);
+                  shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="w-full sm:w-auto cursor-pointer rounded-full border-2 border-white/80 px-8 py-4 text-sm font-bold text-white transition hover:bg-white hover:text-slate-950 active:scale-95"
+              >
+                Find Hostels &amp; Rooms
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. WHY SHOP WITH US (PrissAura style - clean whitespace, 3 bold stat counters) */}
+      {!isFiltering && (
+        <section className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 px-4 py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl text-center">
+            <h2 className="mb-4 text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
+              Why Students Love VarsMart
+            </h2>
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
+              The trusted student hub for Ho &amp; Volta Region. From pocket-friendly phones and laptops to verified hostel vacancies, connect directly with peer students with zero middlemen.
+            </p>
+
+            <div className="mt-12 grid grid-cols-3 gap-4 sm:gap-8 items-center">
+              <div>
+                <div className="mb-2 text-3xl sm:text-5xl font-black text-blue-600 dark:text-blue-400">
+                  100%
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Student Verified
+                </p>
+                <p className="mt-1 hidden sm:block text-xs text-slate-500">
+                  Safe campus meetups
+                </p>
+              </div>
+
+              <div>
+                <div className="mb-2 text-3xl sm:text-5xl font-black text-blue-600 dark:text-blue-400">
+                  500+
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Campus Listings
+                </p>
+                <p className="mt-1 hidden sm:block text-xs text-slate-500">
+                  Hostels, gadgets &amp; food
+                </p>
+              </div>
+
+              <div>
+                <div className="mb-2 text-3xl sm:text-5xl font-black text-blue-600 dark:text-blue-400">
+                  Direct
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                  WhatsApp &amp; Calls
+                </p>
+                <p className="mt-1 hidden sm:block text-xs text-slate-500">
+                  Zero commission fees
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 3. MAIN MARKETPLACE / SHOPPING AREA (PrissAura ShopPage Layout) */}
+      <div ref={shopSectionRef} className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        {/* Header + PrissAura Rounded Search Bar */}
+        <div className="mb-10 flex flex-col items-start justify-between gap-6 lg:flex-row lg:items-end">
+          <div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
+              {searchQuery
+                ? "Search Results"
+                : onlySaved
+                ? "Saved Items"
+                : selectedCategory !== "all"
+                ? categories.find((c) => c.id === selectedCategory)?.name ?? selectedCategory
+                : "Shop All Products"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              {searchQuery
+                ? `Results for "${searchQuery}"`
+                : onlySaved
+                ? `${filteredProducts.length} items saved to your wishlist`
+                : selectedCategory !== "all"
+                ? `${filteredProducts.length} student listings available`
+                : "Everything you need in one clean place"}
+            </p>
+            {isFiltering && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  {filteredProducts.length} items found
+                </span>
+                <span className="text-slate-300 dark:text-slate-700">&bull;</span>
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="text-xs font-bold text-rose-500 hover:underline"
+                >
+                  Clear all filters
+                </button>
+              </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 sm:flex-initial">
-              <MapPin className="absolute left-3 top-3 h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          {/* Search & Location Controls */}
+          <div className="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* PrissAura Search Pill */}
+            <form
+              onSubmit={handleSearchSubmit}
+              className="flex w-full sm:w-80 md:w-96 rounded-full border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus-within:border-blue-600 transition-colors shadow-sm"
+            >
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search products, hostels, iPhone..."
+                className="flex-1 bg-transparent px-5 py-2.5 text-xs sm:text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-slate-500"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearchQuery("");
+                  }}
+                  className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  aria-label="Clear search input"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="submit"
+                className="m-1 rounded-full bg-blue-600 p-2 text-white hover:bg-blue-700 transition"
+                aria-label="Submit search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            </form>
+
+            {/* Location Filter Pill */}
+            <div className="relative">
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full sm:w-auto rounded-2xl border border-gray-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 py-2.5 pl-8 pr-3 text-xs font-semibold text-gray-700 dark:text-slate-300 focus:border-blue-600 focus:outline-none cursor-pointer"
+                className="w-full sm:w-auto appearance-none rounded-full border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-5 py-2.5 pr-9 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-blue-600 focus:outline-none cursor-pointer"
               >
-                <option value="all" className="dark:bg-slate-900">
-                  All Campus Areas
-                </option>
+                <option value="all">All Campus Locations</option>
                 {campusLocations.map((loc) => (
                   <option key={loc.id} value={loc.name} className="dark:bg-slate-900">
                     {loc.name}
                   </option>
                 ))}
               </select>
+              <MapPin className="pointer-events-none absolute right-3.5 top-3.5 h-3.5 w-3.5 text-slate-400" />
             </div>
 
-            <div className="relative flex items-center">
-              <SlidersHorizontal className="absolute left-3 h-3.5 w-3.5 text-gray-400" />
+            {/* Sort Pill */}
+            <div className="relative">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="rounded-2xl border border-gray-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 pl-8 pr-3 py-2.5 text-xs font-semibold text-gray-700 dark:text-slate-300 focus:border-blue-600 focus:outline-none cursor-pointer"
+                className="w-full sm:w-auto appearance-none rounded-full border-2 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-5 py-2.5 pr-9 text-xs font-bold text-slate-700 dark:text-slate-300 focus:border-blue-600 focus:outline-none cursor-pointer"
               >
-                <option value="newest" className="dark:bg-slate-900">Newest first</option>
+                <option value="newest" className="dark:bg-slate-900">Newest</option>
                 <option value="price-low" className="dark:bg-slate-900">Price: Low to High</option>
                 <option value="price-high" className="dark:bg-slate-900">Price: High to Low</option>
               </select>
+              <SlidersHorizontal className="pointer-events-none absolute right-3.5 top-3.5 h-3.5 w-3.5 text-slate-400" />
             </div>
           </div>
         </div>
 
-        {/* Category & Saved Items Tabs */}
-        <div className="mt-3.5 flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
+        {/* Category Filter Pills (PrissAura CategoryFilter layout) */}
+        <div className="mb-12 flex gap-2.5 overflow-x-auto pb-3 scrollbar-none no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+          <button
+            type="button"
+            onClick={() => handleCategorySelect("all")}
+            className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs sm:text-sm font-semibold transition active:scale-95 ${
+              selectedCategory === "all" && !onlySaved
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+            }`}
+          >
+            All Products
+          </button>
+
           <button
             type="button"
             onClick={() => {
+              setOnlySaved((prev) => !prev);
               setSelectedCategory("all");
-              setOnlySaved(false);
             }}
-            className={`rounded-2xl px-4 py-2 text-xs font-bold transition-all whitespace-nowrap active:scale-95 ${
-              selectedCategory === "all" && !onlySaved
-                ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                : "glass-pill text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
-            }`}
-          >
-            All Items
-          </button>
-
-          {/* Saved Items Toggle Tab */}
-          <button
-            type="button"
-            onClick={() => setOnlySaved((prev) => !prev)}
-            className={`rounded-2xl px-3.5 py-2 text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
+            className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 active:scale-95 ${
               onlySaved
-                ? "bg-rose-500 text-white shadow-md shadow-rose-500/25"
-                : "glass-pill text-gray-700 dark:text-slate-300 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-800"
+                ? "bg-rose-500 text-white shadow-md shadow-rose-500/30"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
             }`}
           >
             <Heart className={`h-3.5 w-3.5 ${onlySaved ? "fill-white" : "text-rose-500"}`} />
-            <span>Saved Items</span>
-            {wishlistCount > 0 && (
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[9px] font-black ${
-                  onlySaved ? "bg-white text-rose-600" : "bg-rose-500 text-white"
-                }`}
-              >
-                {wishlistCount}
-              </span>
-            )}
+            <span>Saved ({wishlistCount})</span>
           </button>
 
           {categories.map((c) => {
-            const Icon = c.icon;
             const isSelected = selectedCategory === c.id && !onlySaved;
             return (
               <button
                 key={c.id}
                 type="button"
-                onClick={() => {
-                  setSelectedCategory(c.id);
-                  setOnlySaved(false);
-                  if (c.id === "hostels") setShowHostelBanner(true);
-                }}
-                className={`rounded-2xl px-3.5 py-2 text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
+                onClick={() => handleCategorySelect(c.id)}
+                className={`whitespace-nowrap rounded-full px-5 py-2.5 text-xs sm:text-sm font-semibold transition active:scale-95 ${
                   isSelected
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                    : "glass-pill text-gray-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{c.name}</span>
+                {c.name}
               </button>
             );
           })}
         </div>
 
-        {/* Safety Guarantee Notice */}
-        <div className="mt-2 -mx-3 sm:mx-0">
-          <SafetyBanner />
-        </div>
+        {/* Dedicated Hostel Feature Portal when Hostels selected */}
+        {(showHostelPortal || selectedCategory === "hostels") && (
+          <div className="mb-12">
+            <HostelFinderSection />
+          </div>
+        )}
 
-        {/* Product Grid - 2 COLUMNS ON MOBILE, 3-4 ON DESKTOP */}
-        <div className="mt-5">
-          {loading ? (
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                <ProductSkeletonCard key={n} />
-              ))}
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-12 text-center">
-              {onlySaved ? (
-                <>
-                  <Heart className="mx-auto h-12 w-12 text-rose-300 dark:text-rose-500/50" />
-                  <h3 className="mt-3 text-base font-bold text-gray-900 dark:text-white">
-                    No saved items yet
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400 max-w-sm mx-auto">
-                    Click the heart icon on any product or hostel listing to save it here for easy reference!
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setOnlySaved(false)}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-2xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700"
-                  >
-                    Browse all marketplace items
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Package className="mx-auto h-12 w-12 text-gray-300 dark:text-slate-600" />
-                  <h3 className="mt-3 text-base font-bold text-gray-900 dark:text-white">
-                    No active listings found
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-                    Try adjusting your search query or location filter, or be the first seller to list here!
-                  </p>
-                </>
-              )}
+        {/* CONTENT VIEW: Filtered Grid OR Curated Multi-Section Architecture */}
+        {loading ? (
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <ProductSkeletonCard key={n} />
+            ))}
+          </div>
+        ) : isFiltering ? (
+          /* Filtered or Searched Grid */
+          filteredProducts.length === 0 ? (
+            <div className="py-24 text-center">
+              <Package className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" />
+              <h3 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">
+                No products found
+              </h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                We couldn&apos;t find any items matching your current filters. Try searching with different keywords.
+              </p>
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="mt-6 rounded-full bg-blue-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700 transition"
+              >
+                Clear all filters
+              </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
               {filteredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -499,53 +670,99 @@ export default function MarketplaceView() {
                     setActiveMediaTab("photos");
                     setShowInAppForm(false);
                     setSheetImgError(false);
-                    setInquiryNotice("");
-                    setInquiryError("");
                   }}
                 />
               ))}
             </div>
-          )}
-        </div>
+          )
+        ) : (
+          /* Curated Themed Sections (PrissAura's standout aesthetic!) */
+          <div className="space-y-16 sm:space-y-20">
+            {homeSections.map((section) => (
+              <div key={section.id} className="space-y-6">
+                <div className="flex items-end justify-between border-b border-slate-100 dark:border-slate-800/80 pb-4">
+                  <div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                      {section.title}
+                    </h3>
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                      {section.subtitle}
+                    </p>
+                  </div>
+                  {section.category !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => handleCategorySelect(section.category)}
+                      className="hidden sm:inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition"
+                    >
+                      <span>View All</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Uncluttered Product Grid */}
+                <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+                  {section.products.slice(0, 4).map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onInquire={(item) => {
+                        setInquireProduct(item);
+                        setActiveGalleryIndex(0);
+                        setActiveMediaTab("photos");
+                        setShowInAppForm(false);
+                        setSheetImgError(false);
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Mobile View All Button */}
+                {section.category !== "all" && section.products.length > 4 && (
+                  <div className="text-center sm:hidden pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCategorySelect(section.category)}
+                      className="rounded-full border border-slate-300 dark:border-slate-700 px-6 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+                    >
+                      View All {section.title} &rarr;
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Product Details & Gallery Bottom Sheet */}
+      {/* 4. PRODUCT DETAILS & INQUIRY MODAL (PrissAura ProductDetail Layout) */}
       {inquireProduct && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200"
           onClick={() => setInquireProduct(null)}
         >
           <div
-            className="w-full max-w-lg rounded-t-[2.5rem] sm:rounded-3xl bg-white dark:bg-slate-900 shadow-2xl max-h-[94vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 border border-gray-100 dark:border-slate-800"
+            className="w-full max-w-2xl rounded-t-[2.5rem] sm:rounded-3xl bg-white dark:bg-slate-900 shadow-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300 border border-slate-100 dark:border-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             {/* iOS Pull Handle */}
             <div className="pt-3 pb-1 flex justify-center sm:hidden">
-              <div className="h-1.5 w-12 rounded-full bg-gray-300 dark:bg-slate-700" />
+              <div className="h-1.5 w-12 rounded-full bg-slate-300 dark:bg-slate-700" />
             </div>
 
-            {/* Scrollable Content Container */}
-            <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 space-y-4">
-              {/* Header with Badges & Close Button */}
-              <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
-                    <ModalCategoryIcon className="h-4 w-4" />
-                  </span>
-                  <span className="text-xs font-bold text-gray-700 dark:text-slate-300">
-                    {modalCategoryObj?.name ?? inquireProduct.category}
-                  </span>
-                  {isFlyer && (
-                    <span className="rounded-full bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 px-2 py-0.5 text-[10px] font-black uppercase">
-                      Flyer
-                    </span>
-                  )}
-                </div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 sm:p-8 space-y-6">
+              {/* Header: Category Pill & Close */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  {modalCategoryObj?.name ?? inquireProduct.category}
+                </span>
                 <button
                   type="button"
                   onClick={() => setInquireProduct(null)}
-                  className="rounded-full p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 active:scale-95 transition-all"
-                  aria-label="Close details"
+                  className="rounded-full p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 transition"
+                  aria-label="Close product modal"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -553,14 +770,14 @@ export default function MarketplaceView() {
 
               {/* Media Switcher (Photos vs Video Tour) */}
               {videoInfo && (
-                <div className="flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1">
+                <div className="flex rounded-full bg-slate-100 dark:bg-slate-800 p-1">
                   <button
                     type="button"
                     onClick={() => setActiveMediaTab("photos")}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-2 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       activeMediaTab === "photos"
-                        ? "bg-white dark:bg-slate-900 text-gray-900 dark:text-white shadow-sm"
-                        : "text-gray-500 dark:text-slate-400 hover:text-gray-900"
+                        ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-900"
                     }`}
                   >
                     <Images className="h-3.5 w-3.5" />
@@ -569,377 +786,204 @@ export default function MarketplaceView() {
                   <button
                     type="button"
                     onClick={() => setActiveMediaTab("video")}
-                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    className={`flex-1 py-2 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                       activeMediaTab === "video"
-                        ? "bg-red-600 text-white shadow-sm"
-                        : "text-gray-600 dark:text-slate-300 hover:text-red-600"
+                        ? "bg-rose-600 text-white shadow-sm"
+                        : "text-slate-600 dark:text-slate-300 hover:text-rose-600"
                     }`}
                   >
                     <Play className="h-3.5 w-3.5 fill-current" />
-                    <span>Watch Video Tour</span>
+                    <span>Video Tour</span>
                   </button>
                 </div>
               )}
 
-              {/* Media Showcase: Video Player or Showcase Image */}
+              {/* Showcase Image / Video */}
               {activeMediaTab === "video" && videoInfo ? (
-                <div className="space-y-2">
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-black shadow-inner flex flex-col items-center justify-center">
-                    {videoInfo.type === "youtube" && videoInfo.embedUrl ? (
-                      <iframe
-                        src={videoInfo.embedUrl}
-                        title="Product Video Tour"
-                        className="w-full h-full border-0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    ) : videoInfo.type === "instagram" && videoInfo.embedUrl ? (
-                      <iframe
-                        src={videoInfo.embedUrl}
-                        title="Instagram Reel"
-                        className="w-full h-full border-0 bg-white"
-                        allowFullScreen
-                      />
-                    ) : videoInfo.type === "tiktok" ? (
-                      <div className="p-6 text-center text-white space-y-3">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center mx-auto text-2xl shadow-lg">
-                          🎵
-                        </div>
-                        <div>
-                          <p className="font-black text-sm">TikTok Video Showcase</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Watch the seller&apos;s product clip on TikTok
-                          </p>
-                        </div>
-                        <a
-                          href={videoInfo.streamUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 rounded-xl bg-white text-gray-900 px-4 py-2.5 text-xs font-black hover:bg-gray-100 active:scale-95 transition-all shadow-md"
-                        >
-                          <span>Open on TikTok</span>
-                          <ExternalLink className="h-3.5 w-3.5 text-gray-500" />
-                        </a>
-                      </div>
-                    ) : (
-                      <video
-                        src={videoInfo.streamUrl}
-                        controls
-                        playsInline
-                        preload="none"
-                        poster={modalImageUrl || undefined}
-                        className="w-full h-full object-contain bg-black"
-                      />
-                    )}
-                  </div>
-
-                  {/* External Link Hint for YouTube/Instagram/TikTok */}
-                  {videoInfo.type !== "file" && (
-                    <div className="flex justify-end">
-                      <a
-                        href={videoInfo.streamUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        <span>Open on {videoInfo.platformName}</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-black">
+                  {videoInfo.type === "youtube" && videoInfo.embedUrl ? (
+                    <iframe
+                      src={videoInfo.embedUrl}
+                      title="Product Video Tour"
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      src={videoInfo.streamUrl}
+                      controls
+                      playsInline
+                      poster={modalImageUrl || undefined}
+                      className="w-full h-full object-contain"
+                    />
                   )}
                 </div>
               ) : (
-                <>
-                  {/* Main Showcase Image */}
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 shadow-inner">
+                <div>
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-100 dark:border-slate-800">
                     {modalImageUrl && !sheetImgError ? (
                       <img
                         src={modalImageUrl}
                         alt={inquireProduct.title}
                         onError={() => setSheetImgError(true)}
-                        className="h-full w-full object-cover transition-all duration-200"
+                        className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 text-gray-400">
-                        <ModalCategoryIcon className="h-12 w-12 text-gray-300 dark:text-slate-600" />
-                        <span className="mt-2 text-xs font-semibold text-gray-400 dark:text-slate-500">
-                          {modalCategoryObj?.name ?? "Campus Item"}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Floating Price Tag */}
-                    <div className="absolute bottom-3 left-3">
-                      <div className="glass-pill inline-flex items-baseline gap-1 rounded-2xl px-3 py-1.5 shadow-lg backdrop-blur-md">
-                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400">GHS</span>
-                        <span className="text-lg sm:text-xl font-black text-gray-900 dark:text-white tracking-tight">
-                          {priceDisplay}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Photo Index Indicator */}
-                    {galleryPhotos.length > 1 && (
-                      <div className="absolute top-3 right-3">
-                        <span className="glass-pill inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold text-gray-800 dark:text-white shadow-md backdrop-blur-md">
-                          <Images className="h-3 w-3 text-blue-600" />
-                          <span>
-                            {activeGalleryIndex + 1} / {galleryPhotos.length}
-                          </span>
+                      <div className="flex h-full w-full flex-col items-center justify-center text-slate-400">
+                        <ModalCategoryIcon className="h-12 w-12 text-slate-300 dark:text-slate-600" />
+                        <span className="mt-2 text-xs font-semibold text-slate-400">
+                          {modalCategoryObj?.name ?? "VarsMart Listing"}
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Photo Gallery Thumbnails */}
+                  {/* Thumbnail Row */}
                   {galleryPhotos.length > 1 && (
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-gray-600 dark:text-slate-300">
-                        <span>Product Gallery ({galleryPhotos.length} pictures)</span>
-                        <span className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
-                          Tap photo to view
-                        </span>
-                      </div>
-                      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
-                        {galleryPhotos.map((photoPath, idx) => {
-                          const thumbUrl = getListingImageUrl(photoPath);
-                          const isSelected = activeGalleryIndex === idx;
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setActiveGalleryIndex(idx)}
-                              className={`relative h-14 w-14 shrink-0 rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${
-                                isSelected
-                                  ? "border-blue-600 ring-2 ring-blue-600/30 scale-105"
-                                  : "border-gray-200 dark:border-slate-700 opacity-70 hover:opacity-100"
-                              }`}
-                            >
-                              {thumbUrl ? (
-                                <img
-                                  src={thumbUrl}
-                                  alt={`Thumbnail ${idx}`}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="h-full w-full bg-slate-200 dark:bg-slate-800" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar">
+                      {galleryPhotos.map((photoPath, idx) => {
+                        const thumbUrl = getListingImageUrl(photoPath);
+                        const isSelected = activeGalleryIndex === idx;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveGalleryIndex(idx)}
+                            className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 transition ${
+                              isSelected
+                                ? "border-blue-600 ring-2 ring-blue-600/30 scale-105"
+                                : "border-transparent opacity-70 hover:opacity-100"
+                            }`}
+                          >
+                            {thumbUrl && (
+                              <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
-                </>
+                </div>
               )}
 
-              {/* Title & Location */}
+              {/* Title, Location & Price */}
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-snug">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white leading-snug">
                   {inquireProduct.title}
                 </h2>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 font-semibold text-gray-700 dark:text-slate-300">
-                    <MapPin className="h-3.5 w-3.5 text-blue-600" />
-                    <span>{inquireProduct.location}</span>
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                  <span>{inquireProduct.location}</span>
+                  <span>&bull;</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                    Student Verified
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 font-semibold text-blue-700 dark:text-blue-300">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    <span>Student Verified</span>
+                </div>
+                <div className="mt-4 flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-slate-900 dark:text-white">
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400 mr-1">GH₵</span>
+                    {priceDisplay}
                   </span>
-                  {isFlyer && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 font-semibold text-purple-700 dark:text-purple-300">
-                      <FileText className="h-3.5 w-3.5" />
-                      <span>Promotional Flyer</span>
-                    </span>
-                  )}
                 </div>
               </div>
 
               {/* Description */}
-              <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-4 border border-slate-100 dark:border-slate-800">
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-1">
-                  {isFlyer ? "Flyer Details" : "Product Description"}
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Description
                 </h4>
-                <p className="text-xs text-gray-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                  {inquireProduct.description || "No additional description provided by seller."}
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                  {inquireProduct.description || "No description provided by seller."}
                 </p>
               </div>
 
-              {/* Seller Information Card */}
-              <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+              {/* Seller Card */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 p-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white font-bold text-base shadow-sm">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-base shadow-sm">
                     {modalSellerName.charAt(0).toUpperCase()}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <Store className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                      <p className="font-bold text-sm text-gray-900 dark:text-white truncate">
-                        {modalSellerName}
-                      </p>
-                    </div>
-                    <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate mt-0.5">
-                      {inquireProduct.profiles?.campus_location || inquireProduct.location} &bull; Campus Vendor
+                  <div>
+                    <p className="font-bold text-sm text-slate-900 dark:text-white">
+                      {modalSellerName}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Campus Vendor &bull; {inquireProduct.location}
                     </p>
                   </div>
                 </div>
-
-                {/* Seller Direct Numbers */}
-                {(sellerPhones.displayWhatsapp || sellerPhones.displayCall) && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800 flex flex-wrap items-center gap-2">
-                    {sellerPhones.displayWhatsapp && (
-                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                        <Phone className="h-3 w-3" />
-                        <span>WA: {sellerPhones.displayWhatsapp}</span>
-                      </span>
-                    )}
-                    {sellerPhones.displayCall && (
-                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 text-[11px] font-bold text-blue-700 dark:text-blue-300">
-                        <PhoneCall className="h-3 w-3" />
-                        <span>Call: {sellerPhones.displayCall}</span>
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
 
-              {/* More From This Seller */}
-              {moreSellerItems.length > 0 && (
-                <div className="space-y-2 pt-1 border-t border-gray-100 dark:border-slate-800">
-                  <p className="text-xs font-bold text-gray-800 dark:text-slate-200">
-                    More from this Seller
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {moreSellerItems.map((item) => {
-                      const itemThumb = getListingImageUrl(item.image_path);
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            setInquireProduct(item);
-                            setActiveGalleryIndex(0);
-                            setActiveMediaTab("photos");
-                          }}
-                          className="flex items-center gap-2 rounded-xl border border-gray-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-2 cursor-pointer hover:bg-white dark:hover:bg-slate-800 hover:border-blue-200 transition-all active:scale-95"
-                        >
-                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-700">
-                            {itemThumb && (
-                              <img
-                                src={itemThumb}
-                                alt={item.title}
-                                className="h-full w-full object-cover"
-                              />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate">
-                              {item.title}
-                            </p>
-                            <p className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400">
-                              GHS {Number(item.price_ghs).toFixed(0)}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+              {/* Actions: Direct WhatsApp & Call */}
+              <div className="space-y-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {modalWhatsAppUrl && (
+                    <a
+                      href={modalWhatsAppUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 active:scale-95 transition"
+                    >
+                      <Phone className="h-4 w-4" />
+                      <span>Chat on WhatsApp</span>
+                    </a>
+                  )}
+                  {modalCallUrl && (
+                    <a
+                      href={modalCallUrl}
+                      className="flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition"
+                    >
+                      <PhoneCall className="h-4 w-4" />
+                      <span>Call Seller</span>
+                    </a>
+                  )}
                 </div>
-              )}
 
-              {/* Primary Direct CTAs: WhatsApp & Direct Normal Phone Call */}
-              {modalWhatsAppUrl || modalCallUrl ? (
-                <div className="space-y-2 pt-2">
-                  <div className={`grid ${modalWhatsAppUrl && modalCallUrl ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"} gap-2`}>
-                    {modalWhatsAppUrl && (
-                      <a
-                        href={modalWhatsAppUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 active:scale-98 transition-all"
-                      >
-                        <Phone className="h-4 w-4" />
-                        <span>
-                          {isFlyer ? "Inquire on WhatsApp" : "Chat on WhatsApp"}
-                        </span>
-                      </a>
-                    )}
-                    {modalCallUrl && (
-                      <a
-                        href={modalCallUrl}
-                        className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-98 transition-all"
-                      >
-                        <PhoneCall className="h-4 w-4" />
-                        <span>Call Normal Phone</span>
-                      </a>
-                    )}
-                  </div>
-                  <p className="text-center text-[11px] text-gray-400">
-                    Can&apos;t reach the seller on WhatsApp? Tap &quot;Call Normal Phone&quot; to ring them directly.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl bg-amber-50 dark:bg-amber-950/60 p-3 text-center text-xs text-amber-800 dark:text-amber-300">
-                  Seller has not attached a public contact line. Please use in-app messaging below.
-                </div>
-              )}
-
-              {/* Collapsible In-App Messaging Toggle */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowInAppForm(!showInAppForm)}
-                  className="w-full flex items-center justify-between py-2 text-xs font-bold text-gray-700 dark:text-slate-300 hover:text-blue-600 transition-colors"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <MessageSquare className="h-4 w-4 text-blue-600" />
-                    <span>Send In-App Message on VarsMart</span>
-                  </span>
-                  <ChevronDown
-                    className={`h-4 w-4 text-gray-400 transition-transform ${
-                      showInAppForm ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-
-                {showInAppForm && (
-                  <form
-                    onSubmit={handleSendInquiry}
-                    className="mt-3 space-y-3 animate-in fade-in duration-200"
+                {/* Collapsible In-App Messaging */}
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowInAppForm(!showInAppForm)}
+                    className="text-xs font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 inline-flex items-center gap-1.5"
                   >
-                    {inquiryNotice && (
-                      <div className="flex items-center gap-2 rounded-xl bg-green-50 dark:bg-emerald-950/60 p-3 text-xs font-bold text-green-700 dark:text-emerald-300">
-                        <CheckCircle2 className="h-4 w-4 shrink-0" />
-                        <span>{inquiryNotice}</span>
-                      </div>
-                    )}
-                    {inquiryError && (
-                      <div className="flex items-center gap-2 rounded-xl bg-red-50 dark:bg-rose-950/60 p-3 text-xs font-bold text-red-700 dark:text-rose-300">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>{inquiryError}</span>
-                      </div>
-                    )}
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    <span>Or send in-app message on VarsMart</span>
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showInAppForm ? "rotate-180" : ""}`} />
+                  </button>
 
-                    <div>
+                  {showInAppForm && (
+                    <form onSubmit={handleSendInquiry} className="mt-4 space-y-3 text-left">
+                      {inquiryNotice && (
+                        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-3 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 shrink-0" />
+                          <span>{inquiryNotice}</span>
+                        </div>
+                      )}
+                      {inquiryError && (
+                        <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 p-3 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>{inquiryError}</span>
+                        </div>
+                      )}
                       <textarea
                         required
                         rows={3}
                         value={inquiryBody}
                         onChange={(e) => setInquiryBody(e.target.value)}
                         placeholder={`Hi ${modalSellerName}, is this available? Where on campus can we meet?`}
-                        className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-gray-900 dark:text-white focus:border-blue-600 focus:outline-none"
+                        className="w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
                       />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={sendingInquiry}
-                      className="w-full rounded-xl bg-blue-600 py-3 text-xs font-bold text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 active:scale-98 transition-all"
-                    >
-                      {sendingInquiry ? "Sending..." : "Send Message"}
-                    </button>
-                  </form>
-                )}
+                      <button
+                        type="submit"
+                        disabled={sendingInquiry}
+                        className="w-full rounded-full bg-slate-900 dark:bg-white py-3 text-xs font-bold text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-50 transition"
+                      >
+                        {sendingInquiry ? "Sending..." : "Send In-App Message"}
+                      </button>
+                    </form>
+                  )}
+                </div>
               </div>
             </div>
           </div>
