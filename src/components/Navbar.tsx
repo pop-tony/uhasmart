@@ -15,7 +15,6 @@ import {
   LifeBuoy,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { useUnreadMessages } from "@/lib/useUnreadMessages";
 import { usePwaInstall } from "@/lib/usePwaInstall";
 import { useWishlist } from "@/lib/useWishlist";
 import { useTheme } from "@/lib/useTheme";
@@ -24,7 +23,6 @@ import Logo from "@/components/Logo";
 const navLinks = [
   { href: "/", label: "Marketplace" },
   { href: "/seller", label: "Sell on VarsMart" },
-  { href: "/messages", label: "Messages" },
   { href: "/help", label: "Help & Support", isHelp: true },
 ];
 
@@ -34,7 +32,6 @@ export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const supabase = createClient();
-  const { unreadCount, hasUnread } = useUnreadMessages();
   const { isMounted: pwaMounted, isInstalled, isStandalone, device } = usePwaInstall();
   const { wishlistCount } = useWishlist();
   const { isDark, toggleTheme } = useTheme();
@@ -109,11 +106,6 @@ export default function Navbar() {
             >
               {link.isHelp && <LifeBuoy className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
               <span>{link.label}</span>
-              {link.href === "/messages" && hasUnread && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white shadow-sm animate-pulse">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
             </Link>
           ))}
 
@@ -213,9 +205,6 @@ export default function Navbar() {
             onClick={() => setMobileOpen((open) => !open)}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            {!mobileOpen && hasUnread && (
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 animate-ping" />
-            )}
           </button>
         </div>
       </div>
@@ -239,11 +228,6 @@ export default function Navbar() {
                 {link.isHelp && <LifeBuoy className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
                 <span>{link.label}</span>
               </div>
-              {link.href === "/messages" && hasUnread && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black text-white shadow-sm">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
             </Link>
           ))}
 

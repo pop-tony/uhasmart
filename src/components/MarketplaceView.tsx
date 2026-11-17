@@ -13,12 +13,9 @@ import {
   Search,
   MapPin,
   Package,
-  AlertTriangle,
   X,
-  CheckCircle2,
   Phone,
   PhoneCall,
-  MessageSquare,
   ChevronDown,
   Images,
   Heart,
@@ -74,15 +71,10 @@ export default function MarketplaceView() {
     if (filter === "saved") setOnlySaved(true);
   }, [searchParams]);
 
-  // Product Details & Inquiry Bottom Sheet
+  // Product Details Modal
   const [inquireProduct, setInquireProduct] = useState<ProductItem | null>(null);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<"photos" | "video">("photos");
-  const [inquiryBody, setInquiryBody] = useState("");
-  const [showInAppForm, setShowInAppForm] = useState(false);
-  const [sendingInquiry, setSendingInquiry] = useState(false);
-  const [inquiryNotice, setInquiryNotice] = useState("");
-  const [inquiryError, setInquiryError] = useState("");
   const [sheetImgError, setSheetImgError] = useState(false);
 
   useEffect(() => {
@@ -249,59 +241,6 @@ export default function MarketplaceView() {
       shopSectionRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
-
-  async function handleSendInquiry(e: React.FormEvent) {
-    e.preventDefault();
-    if (!supabase || !inquireProduct) return;
-
-    setSendingInquiry(true);
-    setInquiryNotice("");
-    setInquiryError("");
-
-    try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) {
-        throw new Error(
-          "You must sign in to message sellers directly. Please click Sign In in the top menu."
-        );
-      }
-
-      if (authData.user.id === inquireProduct.seller_id) {
-        throw new Error("You cannot send an inquiry on your own product.");
-      }
-
-      const { data: inqData, error: inqErr } = await supabase
-        .from("inquiries")
-        .upsert({
-          listing_id: inquireProduct.id,
-          buyer_id: authData.user.id,
-          seller_id: inquireProduct.seller_id,
-        })
-        .select()
-        .single();
-
-      if (inqErr) throw inqErr;
-
-      const { error: msgErr } = await supabase.from("inquiry_messages").insert({
-        inquiry_id: inqData.id,
-        sender_id: authData.user.id,
-        body: inquiryBody.trim(),
-      });
-
-      if (msgErr) throw msgErr;
-
-      setInquiryNotice("Inquiry sent to seller! You can continue chatting in the Messages tab.");
-      setInquiryBody("");
-      setTimeout(() => {
-        setInquireProduct(null);
-        setInquiryNotice("");
-      }, 2200);
-    } catch (err) {
-      setInquiryError(err instanceof Error ? err.message : "Failed to send message.");
-    } finally {
-      setSendingInquiry(false);
-    }
-  }
 
   // Pre-calculate modal product details
   const modalSellerName =
@@ -719,7 +658,6 @@ export default function MarketplaceView() {
                     setInquireProduct(item);
                     setActiveGalleryIndex(0);
                     setActiveMediaTab("photos");
-                    setShowInAppForm(false);
                     setSheetImgError(false);
                   }}
                 />
@@ -762,7 +700,6 @@ export default function MarketplaceView() {
                         setInquireProduct(item);
                         setActiveGalleryIndex(0);
                         setActiveMediaTab("photos");
-                        setShowInAppForm(false);
                         setSheetImgError(false);
                       }}
                     />
@@ -1030,10 +967,7 @@ export default function MarketplaceView() {
                               setInquireProduct(item);
                               setActiveGalleryIndex(0);
                               setActiveMediaTab("photos");
-                              setShowInAppForm(false);
                               setSheetImgError(false);
-                              setInquiryNotice("");
-                              setInquiryError("");
                               modalScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
                             }}
                             className="group cursor-pointer rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-2 sm:p-2.5 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500 shadow-sm transition-all active:scale-95 flex flex-col justify-between"
@@ -1044,7 +978,6 @@ export default function MarketplaceView() {
                                 setInquireProduct(item);
                                 setActiveGalleryIndex(0);
                                 setActiveMediaTab("photos");
-                                setShowInAppForm(false);
                                 setSheetImgError(false);
                                 modalScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
                               }
@@ -1084,51 +1017,6 @@ export default function MarketplaceView() {
                     </div>
                   </div>
                 )}
-
-                {/* Collapsible In-App Messaging */}
-                <div className="pt-1 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowInAppForm(!showInAppForm)}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-blue-600 dark:text-slate-400 inline-flex items-center gap-1"
-                  >
-                    <MessageSquare className="h-3 w-3" />
-                    <span>Send in-app message on VarsMart</span>
-                    <ChevronDown className={`h-3 w-3 transition-transform ${showInAppForm ? "rotate-180" : ""}`} />
-                  </button>
-
-                  {showInAppForm && (
-                    <form onSubmit={handleSendInquiry} className="mt-3 space-y-2.5 text-left">
-                      {inquiryNotice && (
-                        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/60 p-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 shrink-0" />
-                          <span>{inquiryNotice}</span>
-                        </div>
-                      )}
-                      {inquiryError && (
-                        <div className="rounded-xl bg-rose-50 dark:bg-rose-950/60 p-2.5 text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>{inquiryError}</span>
-                        </div>
-                      )}
-                      <textarea
-                        required
-                        rows={3}
-                        value={inquiryBody}
-                        onChange={(e) => setInquiryBody(e.target.value)}
-                        placeholder={`Hi ${modalSellerName}, is this available? Where on campus can we meet?`}
-                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2.5 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        disabled={sendingInquiry}
-                        className="w-full rounded-full bg-slate-900 dark:bg-white py-2.5 text-xs font-bold text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-50 transition"
-                      >
-                        {sendingInquiry ? "Sending..." : "Send In-App Message"}
-                      </button>
-                    </form>
-                  )}
-                </div>
               </div>
             </div>
           </div>

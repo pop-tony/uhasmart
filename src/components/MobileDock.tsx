@@ -2,26 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Plus, MessageSquare, User, Heart } from "lucide-react";
-import { useUnreadMessages } from "@/lib/useUnreadMessages";
+import { Search, Plus, User, Heart } from "lucide-react";
 import { useWishlist } from "@/lib/useWishlist";
 
 export default function MobileDock() {
   const pathname = usePathname();
-  const { unreadCount, hasUnread } = useUnreadMessages();
   const { wishlistCount } = useWishlist();
 
   const links = [
     { href: "/", label: "Market", icon: Search },
     { href: "/?filter=saved", label: "Saved", icon: Heart, badge: wishlistCount > 0 ? wishlistCount : null },
     { href: "/seller", label: "Sell", icon: Plus, isAction: true },
-    {
-      href: "/messages",
-      label: "Chats",
-      icon: MessageSquare,
-      badge: hasUnread ? (unreadCount > 9 ? "9+" : unreadCount) : null,
-      isAlert: true,
-    },
     { href: "/account", label: "Account", icon: User },
   ];
 
@@ -66,11 +57,7 @@ export default function MobileDock() {
               <div className="relative">
                 <Icon className={`h-5 w-5 ${isActive ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
                 {link.badge !== null && link.badge !== undefined && (
-                  <span
-                    className={`absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-black text-white shadow-sm ${
-                      link.isAlert ? "bg-rose-500 animate-pulse" : "bg-rose-500"
-                    }`}
-                  >
+                  <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-black text-white shadow-sm bg-rose-500">
                     {link.badge}
                   </span>
                 )}

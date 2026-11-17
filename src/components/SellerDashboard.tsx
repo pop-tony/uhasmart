@@ -32,6 +32,7 @@ import {
   Video,
   Play,
   Link as LinkIcon,
+  Pencil,
 } from "lucide-react";
 import { MAX_VIDEO_FILE_SIZE_BYTES, MAX_VIDEO_FILE_SIZE_MB } from "@/lib/video";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -122,6 +123,20 @@ export default function SellerDashboard() {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoLinkUrl, setVideoLinkUrl] = useState("");
   const [videoError, setVideoError] = useState("");
+
+  // EDIT LISTING STATE
+  const [editingListing, setEditingListing] = useState<ListingItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("food");
+  const [editLocation, setEditLocation] = useState(campusLocations[0].name);
+  const [editPriceType, setEditPriceType] = useState<"fixed" | "range">("fixed");
+  const [editPriceGhs, setEditPriceGhs] = useState("");
+  const [editPriceMaxGhs, setEditPriceMaxGhs] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editContactPhone, setEditContactPhone] = useState("");
+  const [editVideoUrl, setEditVideoUrl] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
 
   // Calculate Subscription & Trial State
   const subscriptionState: SubscriptionState = getSubscriptionState(profile);
@@ -697,6 +712,86 @@ export default function SellerDashboard() {
     }
   }
 
+  function handleOpenEditModal(item: ListingItem) {
+    setEditingListing(item);
+    setEditTitle(item.title);
+    setEditCategory(item.category);
+    setEditPriceGhs(item.price_ghs !== undefined && item.price_ghs !== null ? item.price_ghs.toString() : "");
+    setEditPriceMaxGhs(item.price_max_ghs !== undefined && item.price_max_ghs !== null ? item.price_max_ghs.toString() : "");
+    setEditPriceType(item.price_type || (item.price_max_ghs ? "range" : "fixed"));
+    setEditLocation(item.location || campusLocations[0].name);
+    setEditDescription(item.description || "");
+    setEditContactPhone(item.contact_phone || "");
+    setEditVideoUrl(item.video_url || "");
+    setEditError("");
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!supabase || !editingListing) return;
+
+    const basePrice = parseFloat(editPriceGhs);
+    if (isNaN(basePrice) || basePrice < 0) {
+      setEditError("Please enter a valid price in Ghana Cedis.");
+      return;
+    }
+
+    let maxPrice: number | null = null;
+    if (editPriceType === "range") {
+      if (!editPriceMaxGhs) {
+        setEditError("Please provide the maximum price for the range.");
+        return;
+      }
+      maxPrice = parseFloat(editPriceMaxGhs);
+      if (isNaN(maxPrice) || maxPrice < basePrice) {
+        setEditError("Maximum price must be greater than minimum price.");
+        return;
+      }
+    }
+
+    if (!editTitle.trim()) {
+      setEditError("Product name cannot be empty.");
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError("");
+
+    try {
+      const updatePayload = {
+        title: editTitle.trim(),
+        category: editCategory,
+        price_ghs: basePrice,
+        price_max_ghs: maxPrice,
+        price_type: editPriceType,
+        location: editLocation,
+        description: editDescription.trim(),
+        contact_phone: editContactPhone.trim() || null,
+        video_url: editVideoUrl.trim() || null,
+      };
+
+      const { error: updErr } = await supabase
+        .from("listings")
+        .update(updatePayload)
+        .eq("id", editingListing.id);
+
+      if (updErr) throw updErr;
+
+      setListings((prev) =>
+        prev.map((item) =>
+          item.id === editingListing.id ? { ...item, ...updatePayload } : item
+        )
+      );
+
+      setSuccess(`"${editTitle.trim()}" has been updated successfully!`);
+      setEditingListing(null);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to update product details.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex w-full flex-col items-center justify-center py-20">
@@ -1024,6 +1119,15 @@ export default function SellerDashboard() {
                     </div>
 
                     <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(item)}
+                        className="rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 text-center inline-flex items-center justify-center gap-1"
+                        title="Edit product details"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        <span>Edit</span>
+                      </button>
                       {item.status === "active" && (
                         <button
                           type="button"
@@ -1142,6 +1246,15 @@ export default function SellerDashboard() {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(item)}
+                              className="rounded-xl border border-blue-200 bg-blue-50/70 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1"
+                              title="Edit product details"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              <span>Edit</span>
+                            </button>
                             {item.status === "active" && (
                               <button
                                 type="button"
@@ -1896,6 +2009,239 @@ export default function SellerDashboard() {
           void loadSellerData();
         }}
       />
+
+      {/* 5. EDIT PRODUCT DETAILS MODAL */}
+      {editingListing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200"
+          onClick={() => setEditingListing(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-3xl bg-white p-6 sm:p-8 shadow-2xl max-h-[92vh] overflow-y-auto border border-gray-100 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-lg font-black text-gray-900">Edit Product Details</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Update name, price, campus location, or description
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingListing(null)}
+                className="rounded-full p-2 text-gray-400 hover:bg-gray-100 active:scale-95"
+                aria-label="Close edit modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="mt-5 space-y-4">
+              {editError && (
+                <div className="rounded-2xl bg-red-50 p-3.5 border border-red-200 flex items-center gap-2.5 text-xs text-red-700 font-semibold">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              {/* Title */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Product Name / Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="e.g. iPhone 13 128GB, Dissection Kit, etc."
+                  className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 p-3 text-xs text-gray-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Category & Location Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 p-3 text-xs font-semibold text-gray-800 focus:bg-white focus:border-blue-600 focus:outline-none cursor-pointer"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Campus Location <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 p-3 text-xs font-semibold text-gray-800 focus:bg-white focus:border-blue-600 focus:outline-none cursor-pointer"
+                  >
+                    {campusLocations.map((loc) => (
+                      <option key={loc.id} value={loc.name}>
+                        {loc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Pricing Mode: Fixed vs Range */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-700">
+                    Pricing Mode <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex rounded-full bg-slate-100 p-0.5 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setEditPriceType("fixed")}
+                      className={`rounded-full px-3 py-1 transition ${
+                        editPriceType === "fixed" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500"
+                      }`}
+                    >
+                      Fixed Price
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditPriceType("range")}
+                      className={`rounded-full px-3 py-1 transition ${
+                        editPriceType === "range" ? "bg-white text-blue-700 shadow-sm" : "text-gray-500"
+                      }`}
+                    >
+                      Price Range
+                    </button>
+                  </div>
+                </div>
+
+                {editPriceType === "fixed" ? (
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-3 text-xs font-bold text-gray-400">GH₵</span>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      required
+                      value={editPriceGhs}
+                      onChange={(e) => setEditPriceGhs(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 py-3 pl-12 pr-4 text-xs font-bold text-gray-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-xs font-bold text-gray-400">GH₵ Min</span>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        required
+                        value={editPriceGhs}
+                        onChange={(e) => setEditPriceGhs(e.target.value)}
+                        placeholder="Min Price"
+                        className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 py-3 pl-16 pr-3 text-xs font-bold text-gray-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-xs font-bold text-gray-400">GH₵ Max</span>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        required
+                        value={editPriceMaxGhs}
+                        onChange={(e) => setEditPriceMaxGhs(e.target.value)}
+                        placeholder="Max Price"
+                        className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 py-3 pl-16 pr-3 text-xs font-bold text-gray-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Contact Phone & Video */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Contact Phone / WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    value={editContactPhone}
+                    onChange={(e) => setEditContactPhone(e.target.value)}
+                    placeholder="e.g. 0541234567"
+                    className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 p-3 text-xs text-gray-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    Video Tour Link (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={editVideoUrl}
+                    onChange={(e) => setEditVideoUrl(e.target.value)}
+                    placeholder="YouTube, TikTok, or Instagram link"
+                    className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 p-3 text-xs text-gray-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Details about product condition, specs, hostel amenities, or meetup spots..."
+                  className="w-full rounded-2xl border border-gray-200 bg-slate-50/50 p-3 text-xs text-gray-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2.5 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingListing(null)}
+                  className="flex-1 rounded-2xl border border-gray-200 bg-white py-3.5 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="flex-1 rounded-2xl bg-blue-600 py-3.5 text-xs font-black text-white shadow-md shadow-blue-500/25 hover:bg-blue-700 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {savingEdit ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
