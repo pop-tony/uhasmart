@@ -75,6 +75,12 @@ interface ProfileState {
   created_at?: string;
 }
 
+export function isGenericItemTitle(title: string): boolean {
+  if (!title) return true;
+  const clean = title.trim();
+  return /^(item\s*#?\d+|product\s*#?\d+)$/i.test(clean);
+}
+
 export default function SellerDashboard() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
@@ -137,6 +143,12 @@ export default function SellerDashboard() {
   const [editVideoUrl, setEditVideoUrl] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
+
+  // QUICK RENAME STATE
+  const [quickRenameItem, setQuickRenameItem] = useState<ListingItem | null>(null);
+  const [quickRenameTitle, setQuickRenameTitle] = useState("");
+  const [savingQuickRename, setSavingQuickRename] = useState(false);
+  const [quickRenameError, setQuickRenameError] = useState("");
 
   // Calculate Subscription & Trial State
   const subscriptionState: SubscriptionState = getSubscriptionState(profile);
@@ -392,12 +404,24 @@ export default function SellerDashboard() {
       setError("");
     }
 
-    const newDrafts: ProductItemDraft[] = filesToAdd.map((file, idx) => ({
-      file,
-      previewUrl: URL.createObjectURL(file),
-      title: uniformTitle ? `${uniformTitle} #${productDrafts.length + idx + 1}` : `Item #${productDrafts.length + idx + 1}`,
-      priceGhs: uniformPriceGhs || "",
-    }));
+    const newDrafts: ProductItemDraft[] = filesToAdd.map((file, idx) => {
+      const cleanName = file.name
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[_-]+/g, " ")
+        .trim();
+      const isGeneric = /^(image|img|photo|dsc|pic|whatsapp|screenshot|\d+)$/i.test(cleanName);
+      const suggestedTitle =
+        !isGeneric && cleanName.length >= 3 && cleanName.length <= 40
+          ? cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
+          : "";
+
+      return {
+        file,
+        previewUrl: URL.createObjectURL(file),
+        title: suggestedTitle || (uniformTitle ? `${uniformTitle} #${productDrafts.length + idx + 1}` : ""),
+        priceGhs: uniformPriceGhs || "",
+      };
+    });
 
     setProductDrafts((prev) => [...prev, ...newDrafts]);
   }
@@ -636,9 +660,11 @@ export default function SellerDashboard() {
             ? null
             : (priceType === "range" && priceMaxGhs ? parseFloat(priceMaxGhs) : null);
           const itemPriceType = pricingMode === "individual" ? "fixed" : priceType;
-          const itemTitle = pricingMode === "individual"
-            ? draft.title.trim()
-            : `${uniformTitle || "Item"} #${idx + 1}`;
+          const draftTitle = draft.title.trim();
+          const fallbackTitle = uniformTitle.trim()
+            ? (productDrafts.length > 1 ? `${uniformTitle.trim()} #${idx + 1}` : uniformTitle.trim())
+            : `Product #${idx + 1}`;
+          const itemTitle = draftTitle || fallbackTitle;
 
           return {
             seller_id: user.id,
@@ -789,6 +815,48 @@ export default function SellerDashboard() {
       setEditError(err instanceof Error ? err.message : "Failed to update product details.");
     } finally {
       setSavingEdit(false);
+    }
+  }
+
+  function handleOpenQuickRename(item: ListingItem) {
+    setQuickRenameItem(item);
+    setQuickRenameTitle(item.title);
+    setQuickRenameError("");
+  }
+
+  async function handleSaveQuickRename(e: FormEvent) {
+    e.preventDefault();
+    if (!supabase || !quickRenameItem) return;
+
+    const newTitle = quickRenameTitle.trim();
+    if (!newTitle) {
+      setQuickRenameError("Please enter a valid product name.");
+      return;
+    }
+
+    setSavingQuickRename(true);
+    setQuickRenameError("");
+
+    try {
+      const { error: updErr } = await supabase
+        .from("listings")
+        .update({ title: newTitle, updated_at: new Date().toISOString() })
+        .eq("id", quickRenameItem.id);
+
+      if (updErr) throw updErr;
+
+      setListings((prev) =>
+        prev.map((item) =>
+          item.id === quickRenameItem.id ? { ...item, title: newTitle } : item
+        )
+      );
+
+      setSuccess(`Product renamed to "${newTitle}" successfully!`);
+      setQuickRenameItem(null);
+    } catch (err) {
+      setQuickRenameError(err instanceof Error ? err.message : "Failed to rename product.");
+    } finally {
+      setSavingQuickRename(false);
     }
   }
 
@@ -1043,6 +1111,25 @@ export default function SellerDashboard() {
           </div>
         ) : (
           <>
+            {/* Generic item titles helper banner */}
+            {(() => {
+              const genericCount = listings.filter((l) => isGenericItemTitle(l.title)).length;
+              if (genericCount === 0) return null;
+              return (
+                <div className="mx-4 sm:mx-6 mt-4 mb-2 rounded-2xl border border-amber-200 bg-amber-50/90 p-3.5 flex items-start gap-2.5 text-xs text-amber-900 shadow-sm">
+                  <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-bold">
+                      {genericCount} product{genericCount > 1 ? "s are" : " is"} named like &quot;Item #1&quot;
+                    </p>
+                    <p className="text-amber-800 text-[11px] mt-0.5">
+                      Tap <strong>Rename</strong> on your items below to give them real product names (e.g. &ldquo;Nike Air Max&rdquo;, &ldquo;Nivea Body Cream&rdquo;) so students can search and find them!
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* MOBILE VIEW: Card List */}
             <div className="divide-y divide-gray-100 block md:hidden">
               {listings.map((item) => {
@@ -1104,7 +1191,14 @@ export default function SellerDashboard() {
                           )}
                         </div>
 
-                        <h3 className="mt-1 text-sm font-bold text-gray-900 truncate">{item.title}</h3>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="mt-1 text-sm font-bold text-gray-900 truncate">{item.title}</h3>
+                          {isGenericItemTitle(item.title) && (
+                            <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[9px] font-bold shrink-0">
+                              Needs Name
+                            </span>
+                          )}
+                        </div>
 
                         <p className="text-xs font-black text-blue-600">
                           GHS {Number(item.price_ghs).toFixed(2)}
@@ -1118,15 +1212,23 @@ export default function SellerDashboard() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                    <div className="flex items-center gap-2 pt-1 border-t border-gray-50 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenQuickRename(item)}
+                        className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 text-center inline-flex items-center justify-center gap-1 active:scale-95 transition"
+                        title="Rename product"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        <span>Rename</span>
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleOpenEditModal(item)}
-                        className="rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 text-center inline-flex items-center justify-center gap-1"
-                        title="Edit product details"
+                        className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 text-center inline-flex items-center justify-center gap-1 active:scale-95 transition"
+                        title="Edit all product details"
                       >
-                        <Pencil className="h-3 w-3" />
-                        <span>Edit</span>
+                        <span>Edit Details</span>
                       </button>
                       {item.status === "active" && (
                         <button
@@ -1199,6 +1301,19 @@ export default function SellerDashboard() {
                             <div>
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="font-bold text-gray-900">{item.title}</p>
+                                {isGenericItemTitle(item.title) && (
+                                  <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[9px] font-bold">
+                                    Needs Name
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenQuickRename(item)}
+                                  className="text-blue-600 hover:text-blue-800 p-0.5 hover:bg-blue-50 rounded"
+                                  title="Quick Rename"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
                                 {isFlyer && (
                                   <span className="rounded bg-purple-100 text-purple-800 px-1.5 py-0.2 text-[9px] font-bold">
                                     Flyer
@@ -1248,12 +1363,20 @@ export default function SellerDashboard() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => handleOpenEditModal(item)}
-                              className="rounded-xl border border-blue-200 bg-blue-50/70 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1"
-                              title="Edit product details"
+                              onClick={() => handleOpenQuickRename(item)}
+                              className="rounded-xl border border-blue-200 bg-blue-50/70 px-2.5 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1"
+                              title="Rename product"
                             >
                               <Pencil className="h-3 w-3" />
-                              <span>Edit</span>
+                              <span>Rename</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(item)}
+                              className="rounded-xl border border-gray-200 px-2.5 py-1.5 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-1"
+                              title="Edit all product details"
+                            >
+                              <span>Edit Details</span>
                             </button>
                             {item.status === "active" && (
                               <button
@@ -1552,6 +1675,46 @@ export default function SellerDashboard() {
                           />
                         </div>
                       )}
+
+                      {/* Name Each Product in Uniform Pricing */}
+                      {multiPhotoPostMode === "separate_products" && productDrafts.length > 1 && (
+                        <div className="space-y-2 pt-2 border-t border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-xs font-bold text-gray-700">
+                              Name Each Product ({productDrafts.length} items)
+                            </label>
+                            <span className="text-[10px] text-blue-600 font-semibold">Recommended for search</span>
+                          </div>
+                          <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                            {productDrafts.map((draft, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2.5 rounded-2xl border border-gray-200 bg-slate-50/60 p-2"
+                              >
+                                <img
+                                  src={draft.previewUrl}
+                                  alt={`Photo ${idx + 1}`}
+                                  className="h-10 w-10 rounded-xl object-cover shrink-0 border border-gray-200"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <input
+                                    type="text"
+                                    value={draft.title}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setProductDrafts((prev) =>
+                                        prev.map((d, i) => (i === idx ? { ...d, title: val } : d))
+                                      );
+                                    }}
+                                    placeholder={uniformTitle ? `${uniformTitle} #${idx + 1}` : `Product #${idx + 1} Name (e.g. White Scrub, Nike Dunks)`}
+                                    className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     /* Individual Prices per Product List */
@@ -1581,7 +1744,7 @@ export default function SellerDashboard() {
                                     prev.map((d, i) => (i === idx ? { ...d, title: val } : d))
                                   );
                                 }}
-                                placeholder={`Item #${idx + 1} Name`}
+                                placeholder={`Product #${idx + 1} Name (e.g. Nivea Cocoa Butter)`}
                                 className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none"
                               />
                             </div>
@@ -2235,6 +2398,103 @@ export default function SellerDashboard() {
                     </>
                   ) : (
                     <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK RENAME MODAL */}
+      {quickRenameItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                  <Pencil className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-gray-900">Rename Product</h3>
+                  <p className="text-[11px] text-gray-500">Give your product a clear, catchy name</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickRenameItem(null)}
+                className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 active:scale-95"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {quickRenameError && (
+              <div className="rounded-xl bg-red-50 p-2.5 text-xs text-red-600 font-medium">
+                {quickRenameError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveQuickRename} className="space-y-4">
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 border border-gray-100">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                  {quickRenameItem.image_path ? (
+                    <img
+                      src={getListingImageUrl(quickRenameItem.image_path) || ""}
+                      alt={quickRenameItem.title}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-gray-400">
+                      <Package className="h-6 w-6" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 text-xs">
+                  <p className="text-gray-400 uppercase text-[10px] font-bold">{quickRenameItem.category}</p>
+                  <p className="font-bold text-gray-800 truncate">{quickRenameItem.title}</p>
+                  <p className="font-black text-blue-600">GHS {Number(quickRenameItem.price_ghs).toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Product Name / Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={quickRenameTitle}
+                  onChange={(e) => setQuickRenameTitle(e.target.value)}
+                  placeholder="e.g. Garnier Micellar Cleansing Water 400ml"
+                  className="w-full rounded-2xl border border-gray-200 bg-white p-3.5 text-xs font-semibold text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <p className="mt-1.5 text-[11px] text-gray-400">
+                  Descriptive names (brand, model, size) help students find your item in campus search.
+                </p>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickRenameItem(null)}
+                  className="flex-1 rounded-2xl border border-gray-200 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingQuickRename}
+                  className="flex-1 rounded-2xl bg-blue-600 py-3 text-xs font-black text-white shadow-md shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {savingQuickRename ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Saving Name...</span>
+                    </>
+                  ) : (
+                    <span>Save Name</span>
                   )}
                 </button>
               </div>

@@ -230,19 +230,27 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
       {/* Typography & Details below Image */}
       <div className="mt-2.5 sm:mt-3 flex flex-col">
         {/* Category uppercase tracking */}
-        <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">
-          {categoryObj?.name ?? product.category}
-        </p>
+        <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <span className="truncate">{categoryObj?.name ?? product.category}</span>
+          {sellerName && sellerName !== "Campus Seller" && (
+            <span className="text-blue-600 dark:text-blue-400 truncate max-w-[120px] font-semibold lowercase">
+              @{sellerName.replace(/\s+/g, "").toLowerCase()}
+            </span>
+          )}
+        </div>
 
         {/* Title */}
-        <h3 className="mt-0.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+        <h3 className="mt-0.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white line-clamp-2 min-h-[2rem] sm:min-h-[2.5rem] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {product.title}
         </h3>
 
         {/* Location & Seller */}
         <div className="mt-0.5 flex items-center gap-1 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
           <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
-          <span className="truncate">{product.location}</span>
+          <span className="truncate">
+            {sellerName && sellerName !== "Campus Seller" ? `${sellerName} • ` : ""}
+            {product.location}
+          </span>
         </div>
 
         {/* Price & WhatsApp Action Row */}

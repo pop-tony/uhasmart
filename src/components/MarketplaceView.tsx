@@ -847,7 +847,9 @@ export default function MarketplaceView() {
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-snug">
                   {inquireProduct.title}
                 </h2>
-                <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{modalSellerName}</span>
+                  <span>&bull;</span>
                   <MapPin className="h-3.5 w-3.5 text-slate-400" />
                   <span>{inquireProduct.location}</span>
                   <span>&bull;</span>
