@@ -5,7 +5,6 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import ProductCard, { ProductItem } from "@/components/ProductCard";
 import ProductSkeletonCard from "@/components/ProductSkeletonCard";
-import HostelFinderSection from "@/components/HostelFinderSection";
 import { categories, campusLocations, getCategoryIcon } from "@/lib/data";
 import { createClient } from "@/lib/supabase/client";
 import { getListingImageUrl } from "@/lib/storage";
@@ -43,7 +42,6 @@ export default function MarketplaceView() {
   const [searchInput, setSearchInput] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "price-low" | "price-high">("newest");
   const [onlySaved, setOnlySaved] = useState(false);
-  const [showHostelPortal, setShowHostelPortal] = useState(false);
 
   const { wishlist, wishlistCount } = useWishlist();
   const shopSectionRef = useRef<HTMLDivElement>(null);
@@ -53,7 +51,6 @@ export default function MarketplaceView() {
     const cat = searchParams.get("category");
     if (cat) {
       setSelectedCategory(cat);
-      if (cat === "hostels") setShowHostelPortal(true);
     }
     const q = searchParams.get("query");
     if (q) {
@@ -239,15 +236,11 @@ export default function MarketplaceView() {
     setSelectedCategory("all");
     setSelectedLocation("all");
     setOnlySaved(false);
-    setShowHostelPortal(false);
   };
 
   const handleCategorySelect = (catId: string) => {
     setSelectedCategory(catId);
     setOnlySaved(false);
-    if (catId === "hostels") {
-      setShowHostelPortal(true);
-    }
     if (shopSectionRef.current) {
       shopSectionRef.current.scrollIntoView({ behavior: "smooth" });
     }
@@ -388,27 +381,16 @@ export default function MarketplaceView() {
               Buy and sell quality student gadgets, verified hostels, textbooks, food, and thrift fashion across Ho with direct WhatsApp contact.
             </p>
 
-            {/* PrissAura dual rounded-full pill buttons */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            {/* Hero CTA button */}
+            <div className="mt-8 flex items-center justify-center">
               <button
                 type="button"
                 onClick={() => {
                   shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="w-full sm:w-auto cursor-pointer rounded-full bg-blue-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
+                className="cursor-pointer rounded-full bg-blue-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
               >
-                Shop Now
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCategory("hostels");
-                  setShowHostelPortal(true);
-                  shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="w-full sm:w-auto cursor-pointer rounded-full border-2 border-white/80 px-8 py-4 text-sm font-bold text-white transition hover:bg-white hover:text-slate-950 active:scale-95"
-              >
-                Find Hostels &amp; Rooms
+                Explore Marketplace
               </button>
             </div>
           </div>
@@ -624,13 +606,6 @@ export default function MarketplaceView() {
             );
           })}
         </div>
-
-        {/* Dedicated Hostel Feature Portal when Hostels selected */}
-        {(showHostelPortal || selectedCategory === "hostels") && (
-          <div className="mb-12">
-            <HostelFinderSection />
-          </div>
-        )}
 
         {/* CONTENT VIEW: Filtered Grid OR Curated Multi-Section Architecture */}
         {loading ? (
