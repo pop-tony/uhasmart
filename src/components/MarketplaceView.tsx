@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   Play,
   ArrowRight,
+  Store,
 } from "lucide-react";
 import { createWhatsAppUrl, createCallUrl, parseSellerPhones } from "@/lib/whatsapp";
 import { parseVideoInfo } from "@/lib/video";
@@ -47,6 +48,7 @@ export default function MarketplaceView() {
   const { wishlist, wishlistCount } = useWishlist();
   const shopSectionRef = useRef<HTMLDivElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
 
   // Sync parameters from URL
   useEffect(() => {
@@ -356,6 +358,17 @@ export default function MarketplaceView() {
   const modalCallUrl = inquireProduct && sellerPhones.callPhone
     ? createCallUrl(sellerPhones.callPhone)
     : null;
+
+  // Other active listings from the same seller
+  const moreSellerItems = useMemo(() => {
+    if (!inquireProduct?.seller_id) return [];
+    return listings.filter(
+      (item) =>
+        item.seller_id === inquireProduct.seller_id &&
+        item.id !== inquireProduct.id &&
+        isSellerActive(item)
+    );
+  }, [listings, inquireProduct]);
 
   return (
     <div className="bg-white text-slate-900 dark:bg-slate-950 dark:text-white transition-colors">
@@ -777,7 +790,7 @@ export default function MarketplaceView() {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 sm:p-8 space-y-5">
+            <div ref={modalScrollRef} className="flex-1 overflow-y-auto px-5 py-4 sm:p-8 space-y-5">
               {/* Header: Category Pill & Close */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -964,6 +977,113 @@ export default function MarketplaceView() {
                     </a>
                   )}
                 </div>
+
+                {/* More From This Seller Section */}
+                {moreSellerItems.length > 0 && (
+                  <div className="border-t border-slate-100 dark:border-slate-800 pt-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Store className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
+                            More from {modalSellerName}
+                          </h4>
+                          <p className="text-[10px] text-slate-400">
+                            {moreSellerItems.length} other {moreSellerItems.length === 1 ? "listing" : "listings"} available
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sellerTerm = modalSellerName;
+                          setInquireProduct(null);
+                          setSearchInput(sellerTerm);
+                          setSearchQuery(sellerTerm);
+                          setSelectedCategory("all");
+                          shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+                        }}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      >
+                        <span>View all in feed</span>
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    {/* Responsive Grid of Seller's other listings */}
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                      {moreSellerItems.map((item) => {
+                        const itemImages = [item.image_path, ...(item.gallery_images || [])].filter(Boolean) as string[];
+                        const itemThumb = itemImages.length > 0 ? getListingImageUrl(itemImages[0]) : null;
+                        const isItemRange =
+                          item.price_type === "range" ||
+                          (item.price_max_ghs && item.price_max_ghs > item.price_ghs);
+                        const itemPrice = isItemRange
+                          ? `${Number(item.price_ghs).toFixed(0)} - ${Number(item.price_max_ghs).toFixed(0)}`
+                          : Number(item.price_ghs).toFixed(0);
+
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => {
+                              setInquireProduct(item);
+                              setActiveGalleryIndex(0);
+                              setActiveMediaTab("photos");
+                              setShowInAppForm(false);
+                              setSheetImgError(false);
+                              setInquiryNotice("");
+                              setInquiryError("");
+                              modalScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className="group cursor-pointer rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-2 sm:p-2.5 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500 shadow-sm transition-all active:scale-95 flex flex-col justify-between"
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                setInquireProduct(item);
+                                setActiveGalleryIndex(0);
+                                setActiveMediaTab("photos");
+                                setShowInAppForm(false);
+                                setSheetImgError(false);
+                                modalScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+                              }
+                            }}
+                          >
+                            <div>
+                              <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-700 mb-2">
+                                {itemThumb ? (
+                                  <img
+                                    src={itemThumb}
+                                    alt={item.title}
+                                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-slate-400">
+                                    <Package className="h-6 w-6" />
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                {item.title}
+                              </p>
+                            </div>
+
+                            <div className="mt-1.5 flex items-center justify-between">
+                              <p className="text-xs font-black text-blue-600 dark:text-blue-400">
+                                GH₵ {itemPrice}
+                              </p>
+                              <span className="text-[10px] text-slate-400 truncate max-w-[50%]">
+                                {item.location}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Collapsible In-App Messaging */}
                 <div className="pt-1 text-center">
