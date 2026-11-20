@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import ProductCard, { ProductItem } from "@/components/ProductCard";
 import ProductSkeletonCard from "@/components/ProductSkeletonCard";
@@ -23,6 +24,8 @@ import {
   Play,
   ArrowRight,
   Store,
+  Lock,
+  LogIn,
 } from "lucide-react";
 import { createWhatsAppUrl, createCallUrl, parseSellerPhones } from "@/lib/whatsapp";
 import { parseVideoInfo } from "@/lib/video";
@@ -76,6 +79,47 @@ export default function MarketplaceView() {
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<"photos" | "video">("photos");
   const [sheetImgError, setSheetImgError] = useState(false);
+
+  // User Authentication State (Ensure customers only contact sellers when signed in)
+  const [currentUser, setCurrentUser] = useState<{ id: string; email?: string } | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTargetProduct, setAuthTargetProduct] = useState<ProductItem | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let isMounted = true;
+
+    async function checkUser() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (isMounted) {
+          setCurrentUser(data?.user || null);
+        }
+      } catch {
+        if (isMounted) setCurrentUser(null);
+      }
+    }
+
+    void checkUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event: unknown, session: { user: { id: string; email?: string } } | null) => {
+        if (isMounted) {
+          setCurrentUser(session?.user || null);
+        }
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [supabase]);
+
+  const handleRequireAuth = (product: ProductItem) => {
+    setAuthTargetProduct(product);
+    setShowAuthModal(true);
+  };
 
   useEffect(() => {
     async function loadMarketplace() {
@@ -654,6 +698,8 @@ export default function MarketplaceView() {
                 <ProductCard
                   key={product.id}
                   product={product}
+                  isAuthenticated={Boolean(currentUser)}
+                  onRequireAuth={handleRequireAuth}
                   onInquire={(item) => {
                     setInquireProduct(item);
                     setActiveGalleryIndex(0);
@@ -696,6 +742,8 @@ export default function MarketplaceView() {
                     <ProductCard
                       key={product.id}
                       product={product}
+                      isAuthenticated={Boolean(currentUser)}
+                      onRequireAuth={handleRequireAuth}
                       onInquire={(item) => {
                         setInquireProduct(item);
                         setActiveGalleryIndex(0);
@@ -892,30 +940,61 @@ export default function MarketplaceView() {
                 </div>
               </div>
 
-              {/* Actions: Direct WhatsApp & Call */}
+              {/* Actions: Direct WhatsApp & Call (Customers can only contact when signed in) */}
               <div className="space-y-2.5 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {modalWhatsAppUrl && (
-                    <a
-                      href={modalWhatsAppUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 active:scale-95 transition"
-                    >
-                      <Phone className="h-4 w-4" />
-                      <span>Chat on WhatsApp</span>
-                    </a>
-                  )}
-                  {modalCallUrl && (
-                    <a
-                      href={modalCallUrl}
-                      className="flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition"
-                    >
-                      <PhoneCall className="h-4 w-4" />
-                      <span>Call Seller</span>
-                    </a>
-                  )}
-                </div>
+                {currentUser ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {modalWhatsAppUrl && (
+                      <a
+                        href={modalWhatsAppUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-6 py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 active:scale-95 transition"
+                      >
+                        <Phone className="h-4 w-4" />
+                        <span>Chat on WhatsApp</span>
+                      </a>
+                    )}
+                    {modalCallUrl && (
+                      <a
+                        href={modalCallUrl}
+                        className="flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition"
+                      >
+                        <PhoneCall className="h-4 w-4" />
+                        <span>Call Seller</span>
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50/90 to-indigo-50/60 dark:border-blue-900/40 dark:from-blue-950/40 dark:to-slate-900/40 p-5 space-y-3.5 text-center shadow-sm">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/30">
+                      <Lock className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                        Sign In to Contact {modalSellerName}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                        To protect campus student vendors from spam and ensure verified, safe transactions, please sign in or create a free account to chat on WhatsApp or call.
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1 max-w-md mx-auto">
+                      <Link
+                        href="/login"
+                        className="flex-1 rounded-full bg-blue-600 py-3.5 text-xs sm:text-sm font-black text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition text-center flex items-center justify-center gap-1.5"
+                      >
+                        <LogIn className="h-4 w-4" />
+                        <span>Sign In to Contact</span>
+                      </Link>
+                      <Link
+                        href="/register"
+                        className="flex-1 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition text-center"
+                      >
+                        Create Free Account
+                      </Link>
+                    </div>
+                  </div>
+                )}
 
                 {/* More From This Seller Section */}
                 {moreSellerItems.length > 0 && (
@@ -1020,6 +1099,87 @@ export default function MarketplaceView() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SIGN IN REQUIRED MODAL */}
+      {showAuthModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setShowAuthModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4 animate-in zoom-in-95 duration-200 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 shadow-sm">
+              <Lock className="h-7 w-7" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                Sign In to Contact Seller
+              </h3>
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {authTargetProduct
+                  ? `To protect ${
+                      authTargetProduct.profiles?.business_name ||
+                      authTargetProduct.profiles?.display_name ||
+                      "student sellers"
+                    } from spam and ensure verified campus deals, please sign in or create an account.`
+                  : "To protect campus sellers from spam and ensure verified student transactions, please sign in or create an account."}
+              </p>
+            </div>
+
+            {authTargetProduct && (
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-2.5 text-left border border-slate-100 dark:border-slate-800">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-700">
+                  {authTargetProduct.image_path ? (
+                    <img
+                      src={getListingImageUrl(authTargetProduct.image_path) || ""}
+                      alt={authTargetProduct.title}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-slate-400">
+                      <Package className="h-5 w-5" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 text-xs">
+                  <p className="font-bold text-slate-900 dark:text-white truncate">
+                    {authTargetProduct.title}
+                  </p>
+                  <p className="font-black text-blue-600 dark:text-blue-400">
+                    GH₵ {Number(authTargetProduct.price_ghs).toFixed(0)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-2">
+              <Link
+                href="/login"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 text-xs sm:text-sm font-black text-white shadow-md shadow-blue-600/25 hover:bg-blue-700 active:scale-95 transition"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Sign In to Continue</span>
+              </Link>
+              <Link
+                href="/register"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition"
+              >
+                <span>Create Free Account</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(false)}
+                className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                Maybe later
+              </button>
             </div>
           </div>
         </div>

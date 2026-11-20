@@ -21,6 +21,8 @@ import {
   FileText,
   Play,
   ExternalLink,
+  Lock,
+  LogIn,
 } from "lucide-react";
 import { getListingImageUrl } from "@/lib/storage";
 import { categories, getCategoryIcon } from "@/lib/data";
@@ -35,6 +37,38 @@ export default function FeaturedListings() {
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   const [activeMediaTab, setActiveMediaTab] = useState<"photos" | "video">("photos");
   const [sheetImgError, setSheetImgError] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let isMounted = true;
+
+    async function checkUser() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (isMounted) {
+          setCurrentUser(data?.user || null);
+        }
+      } catch {
+        if (isMounted) setCurrentUser(null);
+      }
+    }
+
+    void checkUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event: unknown, session: { user: unknown } | null) => {
+        if (isMounted) {
+          setCurrentUser((session?.user as { id: string }) || null);
+        }
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [supabase]);
 
   useEffect(() => {
     async function loadRecent() {
@@ -168,6 +202,7 @@ export default function FeaturedListings() {
               <ProductCard
                 key={product.id}
                 product={product}
+                isAuthenticated={Boolean(currentUser)}
                 onInquire={(p) => {
                   setSelectedProduct(p);
                   setActiveGalleryIndex(0);
@@ -509,7 +544,7 @@ export default function FeaturedListings() {
                 </div>
 
                 {/* Seller Phone Numbers */}
-                {(sellerPhones.displayWhatsapp || sellerPhones.displayCall) && (
+                {currentUser && (sellerPhones.displayWhatsapp || sellerPhones.displayCall) && (
                   <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
                     {sellerPhones.displayWhatsapp && (
                       <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
@@ -528,35 +563,66 @@ export default function FeaturedListings() {
               </div>
 
               {/* Primary Direct CTAs */}
-              {modalWhatsAppUrl || modalCallUrl ? (
-                <div className="space-y-2">
-                  <div className={`grid ${modalWhatsAppUrl && modalCallUrl ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"} gap-2`}>
-                    {modalWhatsAppUrl && (
-                      <a
-                        href={modalWhatsAppUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 active:scale-98 transition-all"
-                      >
-                        <Phone className="h-4 w-4" />
-                        <span>{isFlyer ? "Inquire on WhatsApp" : "Chat on WhatsApp"}</span>
-                      </a>
-                    )}
-                    {modalCallUrl && (
-                      <a
-                        href={modalCallUrl}
-                        className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-98 transition-all"
-                      >
-                        <PhoneCall className="h-4 w-4" />
-                        <span>Call Normal Phone</span>
-                      </a>
-                    )}
+              {currentUser ? (
+                modalWhatsAppUrl || modalCallUrl ? (
+                  <div className="space-y-2">
+                    <div className={`grid ${modalWhatsAppUrl && modalCallUrl ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"} gap-2`}>
+                      {modalWhatsAppUrl && (
+                        <a
+                          href={modalWhatsAppUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 active:scale-98 transition-all"
+                        >
+                          <Phone className="h-4 w-4" />
+                          <span>{isFlyer ? "Inquire on WhatsApp" : "Chat on WhatsApp"}</span>
+                        </a>
+                      )}
+                      {modalCallUrl && (
+                        <a
+                          href={modalCallUrl}
+                          className="flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-sm font-black text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 active:scale-98 transition-all"
+                        >
+                          <PhoneCall className="h-4 w-4" />
+                          <span>Call Normal Phone</span>
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-center text-[11px] text-gray-400">
+                      Can&apos;t reach on WhatsApp? Tap &quot;Call Normal Phone&quot; to ring directly.
+                    </p>
                   </div>
-                  <p className="text-center text-[11px] text-gray-400">
-                    Can&apos;t reach on WhatsApp? Tap &quot;Call Normal Phone&quot; to ring directly.
-                  </p>
+                ) : null
+              ) : (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 space-y-3 text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-600/30">
+                    <Lock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-gray-900">
+                      Sign In to Contact {modalSellerName}
+                    </h4>
+                    <p className="text-[11px] text-gray-500 mt-1 max-w-sm mx-auto">
+                      To protect campus vendors from spam and ensure verified student transactions, you must be signed in to contact this seller.
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2 pt-1 max-w-sm mx-auto">
+                    <Link
+                      href="/login"
+                      className="flex-1 rounded-full bg-blue-600 py-2.5 text-xs font-black text-white shadow-md hover:bg-blue-700 active:scale-95 transition text-center flex items-center justify-center gap-1.5"
+                    >
+                      <LogIn className="h-3.5 w-3.5" />
+                      <span>Sign In</span>
+                    </Link>
+                    <Link
+                      href="/register"
+                      className="flex-1 rounded-full border border-gray-200 bg-white py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 active:scale-95 transition text-center"
+                    >
+                      Create Account
+                    </Link>
+                  </div>
                 </div>
-              ) : null}
+              )}
 
               <Link
                 href="/marketplace"

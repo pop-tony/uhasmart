@@ -11,6 +11,7 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
+  Lock,
 } from "lucide-react";
 import { categories, getCategoryIcon } from "@/lib/data";
 import { getListingImageUrl } from "@/lib/storage";
@@ -46,9 +47,16 @@ export interface ProductItem {
 interface ProductCardProps {
   product: ProductItem;
   onInquire?: (product: ProductItem) => void;
+  isAuthenticated?: boolean;
+  onRequireAuth?: (product: ProductItem) => void;
 }
 
-export default function ProductCard({ product, onInquire }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  onInquire,
+  isAuthenticated = false,
+  onRequireAuth,
+}: ProductCardProps) {
   const categoryObj = categories.find((c) => c.id === product.category);
   const CategoryIcon = getCategoryIcon(product.category);
   const sellerName = product.profiles?.business_name || product.profiles?.display_name || "Campus Seller";
@@ -262,17 +270,36 @@ export default function ProductCard({ product, onInquire }: ProductCardProps) {
 
           {/* Quick WhatsApp Action Button */}
           {whatsAppUrl ? (
-            <a
-              href={whatsAppUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white px-2 py-0.5 text-[10px] sm:text-[11px] font-bold transition-all shadow-sm active:scale-95"
-              title="Chat with seller on WhatsApp"
-            >
-              <Phone className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
-              <span>Chat</span>
-            </a>
+            isAuthenticated ? (
+              <a
+                href={whatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white px-2 py-0.5 text-[10px] sm:text-[11px] font-bold transition-all shadow-sm active:scale-95"
+                title="Chat with seller on WhatsApp"
+              >
+                <Phone className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                <span>Chat</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onRequireAuth) {
+                    onRequireAuth(product);
+                  } else if (onInquire) {
+                    onInquire(product);
+                  }
+                }}
+                className="inline-flex items-center gap-1 rounded-full bg-slate-100 hover:bg-blue-600 text-slate-700 hover:text-white dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-blue-600 dark:hover:text-white px-2 py-0.5 text-[10px] sm:text-[11px] font-bold transition-all shadow-sm active:scale-95"
+                title="Sign in to contact seller"
+              >
+                <Lock className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span>Chat</span>
+              </button>
+            )
           ) : (
             <span className="text-[10px] font-medium text-slate-400">View</span>
           )}
