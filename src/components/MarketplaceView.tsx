@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import ProductCard, { ProductItem } from "@/components/ProductCard";
 import ProductSkeletonCard from "@/components/ProductSkeletonCard";
-import { categories, campusLocations, getCategoryIcon } from "@/lib/data";
+import { categories, campusLocations, getCategoryIcon, ALL_CATEGORY_IMAGE } from "@/lib/data";
+import { matchProductWithSynonyms, getSearchSynonymHint } from "@/lib/search";
 import { createClient } from "@/lib/supabase/client";
 import { getListingImageUrl } from "@/lib/storage";
 import { useWishlist } from "@/lib/useWishlist";
@@ -26,6 +27,7 @@ import {
   Lock,
   LogIn,
   LayoutGrid,
+  Sparkles,
 } from "lucide-react";
 import { createWhatsAppUrl, createCallUrl, parseSellerPhones } from "@/lib/whatsapp";
 import { parseVideoInfo } from "@/lib/video";
@@ -173,6 +175,11 @@ export default function MarketplaceView() {
     return expiryDate.getTime() > Date.now();
   };
 
+  // Smart synonym hint for active search queries
+  const synonymHint = useMemo(() => {
+    return searchQuery.trim() ? getSearchSynonymHint(searchQuery) : null;
+  }, [searchQuery]);
+
   const filteredProducts = useMemo(() => {
     return listings
       .filter((item) => {
@@ -181,14 +188,23 @@ export default function MarketplaceView() {
 
         const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
         const matchesLocation = selectedLocation === "all" || item.location === selectedLocation;
-        const matchesSearch =
-          !searchQuery.trim() ||
-          item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (item.profiles?.business_name ?? "").toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesCategory && matchesLocation && matchesSearch;
+
+        // Smart search with synonym expansion (e.g. spray <-> perfume, kicks <-> shoes)
+        const searchResult = !searchQuery.trim()
+          ? { matches: true, score: 0 }
+          : matchProductWithSynonyms(item, searchQuery);
+
+        return matchesCategory && matchesLocation && searchResult.matches;
       })
       .sort((a, b) => {
+        // When searching, sort by search match relevance unless explicit price sort is chosen
+        if (searchQuery.trim() && sortBy === "newest") {
+          const scoreA = matchProductWithSynonyms(a, searchQuery).score;
+          const scoreB = matchProductWithSynonyms(b, searchQuery).score;
+          if (scoreA !== scoreB) {
+            return scoreB - scoreA;
+          }
+        }
         if (sortBy === "price-low") return Number(a.price_ghs) - Number(b.price_ghs);
         if (sortBy === "price-high") return Number(b.price_ghs) - Number(a.price_ghs);
         return 0;
@@ -548,13 +564,22 @@ export default function MarketplaceView() {
               className="group flex flex-col items-center justify-start text-center cursor-pointer select-none active:scale-90 transition-transform"
             >
               <div
-                className={`flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl sm:rounded-full transition-all duration-200 shadow-sm ${
+                className={`relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-200 shadow-sm ${
                   selectedCategory === "all" && !onlySaved
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-950 scale-105"
-                    : "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-400"
-                }`}
+                    ? "ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-950 scale-105 shadow-md shadow-blue-600/30"
+                    : "border border-slate-200/80 dark:border-slate-800 hover:shadow-md"
+                } bg-blue-50 dark:bg-blue-950/60`}
               >
-                <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 transition-transform group-hover:scale-110" />
+                <LayoutGrid className="absolute h-6 w-6 text-blue-500 opacity-30" />
+                <img
+                  src={ALL_CATEGORY_IMAGE}
+                  alt="All Categories"
+                  className="relative z-10 h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                  loading="lazy"
+                />
+                {selectedCategory === "all" && !onlySaved && (
+                  <div className="absolute inset-0 z-20 bg-blue-600/20 backdrop-blur-[0.5px] pointer-events-none" />
+                )}
               </div>
               <span
                 className={`mt-1.5 text-[11px] sm:text-xs leading-tight text-center line-clamp-1 transition-colors ${
@@ -579,15 +604,22 @@ export default function MarketplaceView() {
                   className="group flex flex-col items-center justify-start text-center cursor-pointer select-none active:scale-90 transition-transform"
                 >
                   <div
-                    className={`flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl sm:rounded-full transition-all duration-200 shadow-sm ${
+                    className={`relative flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-200 shadow-sm ${
                       isSelected
-                        ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-950 scale-105"
-                        : `${c.color?.bg || "bg-slate-100 dark:bg-slate-800"} ${
-                            c.color?.text || "text-slate-700 dark:text-slate-300"
-                          } hover:brightness-95`
-                    }`}
+                        ? "ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-950 scale-105 shadow-md shadow-blue-600/30"
+                        : "border border-slate-200/80 dark:border-slate-800 hover:shadow-md"
+                    } ${c.color?.bg || "bg-slate-100 dark:bg-slate-800"}`}
                   >
-                    <Icon className="h-5 w-5 sm:h-6 sm:w-6 transition-transform group-hover:scale-110" />
+                    <Icon className={`absolute h-6 w-6 ${c.color?.text || "text-slate-500"} opacity-30`} />
+                    <img
+                      src={c.image}
+                      alt={c.name}
+                      className="relative z-10 h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                      loading="lazy"
+                    />
+                    {isSelected && (
+                      <div className="absolute inset-0 z-20 bg-blue-600/20 backdrop-blur-[0.5px] pointer-events-none" />
+                    )}
                   </div>
                   <span
                     className={`mt-1.5 text-[11px] sm:text-xs leading-tight text-center line-clamp-1 transition-colors ${
@@ -607,6 +639,14 @@ export default function MarketplaceView() {
 
       {/* 4. MAIN PRODUCT FEED */}
       <div ref={shopSectionRef} className="mx-auto max-w-7xl px-3.5 py-6 sm:px-6 lg:px-8 sm:py-10">
+        {/* Mobile Smart Synonym Match Banner */}
+        {searchQuery && synonymHint && (
+          <div className="mb-4 sm:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50/90 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900/60 text-[11px] font-medium text-blue-800 dark:text-blue-200 shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+            <span>Smart search included synonyms: <strong>{synonymHint}</strong></span>
+          </div>
+        )}
+
         {/* Active Category Filter Pill */}
         {selectedCategory !== "all" && (
           <div className="mb-6 flex items-center justify-between gap-2 rounded-2xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/40 p-3 sm:px-4">
@@ -645,9 +685,17 @@ export default function MarketplaceView() {
                 ? categories.find((c) => c.id === selectedCategory)?.name
                 : "Explore Campus Deals"}
             </h2>
-            <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              {isFiltering ? `${filteredProducts.length} items found` : "Top student listings across Ho"}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="text-xs sm:text-sm text-slate-500">
+                {isFiltering ? `${filteredProducts.length} items found` : "Top student listings across Ho"}
+              </p>
+              {searchQuery && synonymHint && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-900 px-2.5 py-0.5 rounded-full">
+                  <Sparkles className="h-3 w-3 text-blue-600" />
+                  <span>Also matched: {synonymHint}</span>
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

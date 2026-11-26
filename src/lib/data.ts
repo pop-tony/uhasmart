@@ -19,6 +19,7 @@ export interface Category {
   shortName?: string;
   description: string;
   icon: LucideIcon;
+  image: string;
   color?: {
     bg: string;
     text: string;
@@ -49,6 +50,8 @@ export const campusLocations: CampusLocation[] = [
   { id: "ho-wide", name: "Across Ho (Delivery Available)" },
 ];
 
+export const ALL_CATEGORY_IMAGE = "/categories/all.jpg";
+
 export const categories: Category[] = [
   {
     id: "hostels",
@@ -56,6 +59,7 @@ export const categories: Category[] = [
     shortName: "Hostels",
     description: "Student hostels, homestays, self-contain rooms & shared apartments",
     icon: Home,
+    image: "/categories/hostels.jpg",
     color: {
       bg: "bg-indigo-50 dark:bg-indigo-950/60",
       text: "text-indigo-600 dark:text-indigo-400",
@@ -67,6 +71,7 @@ export const categories: Category[] = [
     shortName: "Food",
     description: "Campus meals, snacks, smoothies, chops & fast food",
     icon: Utensils,
+    image: "/categories/food.jpg",
     color: {
       bg: "bg-orange-50 dark:bg-orange-950/60",
       text: "text-orange-600 dark:text-orange-400",
@@ -78,6 +83,7 @@ export const categories: Category[] = [
     shortName: "Groceries",
     description: "Provisions, toiletries, bottled water, snacks & daily dorm needs",
     icon: ShoppingBasket,
+    image: "/categories/groceries.jpg",
     color: {
       bg: "bg-emerald-50 dark:bg-emerald-950/60",
       text: "text-emerald-600 dark:text-emerald-400",
@@ -89,6 +95,7 @@ export const categories: Category[] = [
     shortName: "Salons",
     description: "Hair styling, braiding, dreadlocks, fades, barbering & wig revamping",
     icon: Scissors,
+    image: "/categories/salons-barbers.jpg",
     color: {
       bg: "bg-pink-50 dark:bg-pink-950/60",
       text: "text-pink-600 dark:text-pink-400",
@@ -100,6 +107,7 @@ export const categories: Category[] = [
     shortName: "Fashion",
     description: "Clothing, thrift shoes, sneakers, watches, bags & accessories",
     icon: Shirt,
+    image: "/categories/fashion.jpg",
     color: {
       bg: "bg-purple-50 dark:bg-purple-950/60",
       text: "text-purple-600 dark:text-purple-400",
@@ -111,6 +119,7 @@ export const categories: Category[] = [
     shortName: "Tech",
     description: "Laptops, smartphones, chargers, power banks & device repairs",
     icon: Laptop,
+    image: "/categories/electronics.jpg",
     color: {
       bg: "bg-sky-50 dark:bg-sky-950/60",
       text: "text-sky-600 dark:text-sky-400",
@@ -122,6 +131,7 @@ export const categories: Category[] = [
     shortName: "Beauty",
     description: "Skincare, cosmetics, perfumes, makeup & personal care",
     icon: Sparkles,
+    image: "/categories/beauty.jpg",
     color: {
       bg: "bg-rose-50 dark:bg-rose-950/60",
       text: "text-rose-600 dark:text-rose-400",
@@ -133,6 +143,7 @@ export const categories: Category[] = [
     shortName: "Books",
     description: "Textbooks, medical notes, lab coats, dissection kits & tutoring",
     icon: BookOpen,
+    image: "/categories/academic-services.jpg",
     color: {
       bg: "bg-amber-50 dark:bg-amber-950/60",
       text: "text-amber-700 dark:text-amber-400",
@@ -144,6 +155,7 @@ export const categories: Category[] = [
     shortName: "Printing",
     description: "Photocopying, project binding, flyers, banner design & stationery",
     icon: Printer,
+    image: "/categories/printing.jpg",
     color: {
       bg: "bg-teal-50 dark:bg-teal-950/60",
       text: "text-teal-600 dark:text-teal-400",
@@ -155,6 +167,7 @@ export const categories: Category[] = [
     shortName: "Media",
     description: "Event coverage, portrait sessions, graduation shoots & editing",
     icon: Camera,
+    image: "/categories/photography.jpg",
     color: {
       bg: "bg-violet-50 dark:bg-violet-950/60",
       text: "text-violet-600 dark:text-violet-400",
@@ -166,6 +179,7 @@ export const categories: Category[] = [
     shortName: "Services",
     description: "Room décor, laundry, errands & artisan services in Ho",
     icon: Layers,
+    image: "/categories/other.jpg",
     color: {
       bg: "bg-slate-100 dark:bg-slate-800",
       text: "text-slate-600 dark:text-slate-300",
@@ -176,4 +190,10 @@ export const categories: Category[] = [
 export function getCategoryIcon(categoryId: string): LucideIcon {
   const cat = categories.find((c) => c.id === categoryId);
   return cat ? cat.icon : Layers;
+}
+
+export function getCategoryImage(categoryId: string): string {
+  if (categoryId === "all") return ALL_CATEGORY_IMAGE;
+  const cat = categories.find((c) => c.id === categoryId);
+  return cat?.image || ALL_CATEGORY_IMAGE;
 }
