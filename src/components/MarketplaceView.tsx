@@ -19,13 +19,13 @@ import {
   PhoneCall,
   ChevronDown,
   Images,
-  Heart,
   SlidersHorizontal,
   Play,
   ArrowRight,
   Store,
   Lock,
   LogIn,
+  LayoutGrid,
 } from "lucide-react";
 import { createWhatsAppUrl, createCallUrl, parseSellerPhones } from "@/lib/whatsapp";
 import { parseVideoInfo } from "@/lib/video";
@@ -45,7 +45,7 @@ export default function MarketplaceView() {
   const [onlySaved, setOnlySaved] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  const { wishlist, wishlistCount } = useWishlist();
+  const { wishlist } = useWishlist();
   const shopSectionRef = useRef<HTMLDivElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
@@ -514,49 +514,60 @@ export default function MarketplaceView() {
         </div>
       )}
 
-      {/* 3. AIRBNB-STYLE MINIMALIST CATEGORY STRIP (Clean line icons + underline indicator) */}
-      <div className="sticky top-16 sm:top-20 z-20 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 transition-colors">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-6 sm:gap-8 overflow-x-auto pt-3 pb-2 scrollbar-none no-scrollbar">
-            {/* All Products */}
+      {/* 3. JIJI-STYLE CATEGORY GRID (4-column mobile icon grid + responsive desktop layout) */}
+      <section className="bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800/80 px-3 sm:px-6 py-4 sm:py-6 transition-colors">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                Categories
+              </h2>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                {categories.length}
+              </span>
+            </div>
+
+            {selectedCategory !== "all" && (
+              <button
+                type="button"
+                onClick={() => handleCategorySelect("all")}
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 active:scale-95 transition"
+              >
+                <span>Reset to All</span>
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Jiji 4-Column Grid on Mobile, expanding gracefully to 6 and 12 columns */}
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-y-3.5 sm:gap-y-4 gap-x-1.5 sm:gap-x-3">
+            {/* All Products Tile */}
             <button
               type="button"
               onClick={() => handleCategorySelect("all")}
-              className={`group flex flex-col items-center gap-1.5 pb-2 border-b-2 transition-all whitespace-nowrap active:scale-95 ${
-                selectedCategory === "all" && !onlySaved
-                  ? "border-blue-600 text-blue-600 dark:text-blue-400 font-bold"
-                  : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-              }`}
+              className="group flex flex-col items-center justify-start text-center cursor-pointer select-none active:scale-90 transition-transform"
             >
-              <Package className="h-5 w-5 transition-transform group-hover:scale-110" />
-              <span className="text-[11px] font-semibold">All Items</span>
-            </button>
-
-            {/* Saved Wishlist */}
-            <button
-              type="button"
-              onClick={() => {
-                setOnlySaved((prev) => !prev);
-                setSelectedCategory("all");
-              }}
-              className={`group flex flex-col items-center gap-1.5 pb-2 border-b-2 transition-all whitespace-nowrap active:scale-95 ${
-                onlySaved
-                  ? "border-rose-500 text-rose-500 font-bold"
-                  : "border-transparent text-slate-500 hover:text-rose-500 dark:text-slate-400"
-              }`}
-            >
-              <div className="relative">
-                <Heart className={`h-5 w-5 transition-transform group-hover:scale-110 ${onlySaved ? "fill-current" : ""}`} />
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-bold text-white">
-                    {wishlistCount}
-                  </span>
-                )}
+              <div
+                className={`flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl sm:rounded-full transition-all duration-200 shadow-sm ${
+                  selectedCategory === "all" && !onlySaved
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-950 scale-105"
+                    : "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-400"
+                }`}
+              >
+                <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 transition-transform group-hover:scale-110" />
               </div>
-              <span className="text-[11px] font-semibold">Saved</span>
+              <span
+                className={`mt-1.5 text-[11px] sm:text-xs leading-tight text-center line-clamp-1 transition-colors ${
+                  selectedCategory === "all" && !onlySaved
+                    ? "font-bold text-blue-600 dark:text-blue-400"
+                    : "font-semibold text-slate-700 dark:text-slate-300 group-hover:text-blue-600"
+                }`}
+              >
+                All
+              </span>
             </button>
 
-            {/* All Categories as Airbnb Icons */}
+            {/* Individual Category Tiles */}
             {categories.map((c) => {
               const Icon = c.icon;
               const isSelected = selectedCategory === c.id && !onlySaved;
@@ -565,23 +576,63 @@ export default function MarketplaceView() {
                   key={c.id}
                   type="button"
                   onClick={() => handleCategorySelect(c.id)}
-                  className={`group flex flex-col items-center gap-1.5 pb-2 border-b-2 transition-all whitespace-nowrap active:scale-95 ${
-                    isSelected
-                      ? "border-blue-600 text-blue-600 dark:text-blue-400 font-bold"
-                      : "border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-                  }`}
+                  className="group flex flex-col items-center justify-start text-center cursor-pointer select-none active:scale-90 transition-transform"
                 >
-                  <Icon className="h-5 w-5 transition-transform group-hover:scale-110" />
-                  <span className="text-[11px] font-semibold">{c.name}</span>
+                  <div
+                    className={`flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl sm:rounded-full transition-all duration-200 shadow-sm ${
+                      isSelected
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-slate-950 scale-105"
+                        : `${c.color?.bg || "bg-slate-100 dark:bg-slate-800"} ${
+                            c.color?.text || "text-slate-700 dark:text-slate-300"
+                          } hover:brightness-95`
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6 transition-transform group-hover:scale-110" />
+                  </div>
+                  <span
+                    className={`mt-1.5 text-[11px] sm:text-xs leading-tight text-center line-clamp-1 transition-colors ${
+                      isSelected
+                        ? "font-bold text-blue-600 dark:text-blue-400"
+                        : "font-semibold text-slate-700 dark:text-slate-300 group-hover:text-blue-600"
+                    }`}
+                  >
+                    {c.shortName || c.name}
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* 4. MAIN PRODUCT FEED */}
       <div ref={shopSectionRef} className="mx-auto max-w-7xl px-3.5 py-6 sm:px-6 lg:px-8 sm:py-10">
+        {/* Active Category Filter Pill */}
+        {selectedCategory !== "all" && (
+          <div className="mb-6 flex items-center justify-between gap-2 rounded-2xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/60 dark:bg-blue-950/40 p-3 sm:px-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Category:</span>
+              <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold text-white shadow-sm flex items-center gap-1.5">
+                <span>{categories.find((c) => c.id === selectedCategory)?.name || selectedCategory}</span>
+                <button
+                  type="button"
+                  onClick={() => handleCategorySelect("all")}
+                  className="rounded-full p-0.5 hover:bg-blue-700 active:scale-95 transition"
+                  title="Remove category filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleCategorySelect("all")}
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Show all
+            </button>
+          </div>
+        )}
         {/* Desktop Search Bar (Visible on desktop only) */}
         <div className="hidden sm:flex mb-8 items-end justify-between gap-4">
           <div>
