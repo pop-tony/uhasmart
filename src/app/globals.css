@@ -154,3 +154,46 @@ body {
   background-size: 200% 100%;
   animation: shimmer 1.6s infinite ease-in-out;
 }
+
+/* ==========================================================================
+   Mobile Portrait Lock Guard
+   Locks orientation on mobile phones so rotating to landscape doesn't break layout
+   ========================================================================== */
+@keyframes phoneRotatePrompt {
+  0%, 15% {
+    transform: rotate(0deg);
+  }
+  45%, 70% {
+    transform: rotate(-90deg);
+  }
+  90%, 100% {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-phone-rotate {
+  animation: phoneRotatePrompt 2.6s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* CSS-first barrier: instantly shows on mobile landscape even before JS hydration */
+@media screen and (orientation: landscape) and (max-height: 550px) and (pointer: coarse) {
+  #portrait-lock-barrier {
+    display: flex !important;
+  }
+  body {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+}
+
+@media screen and (orientation: portrait) {
+  #portrait-lock-barrier {
+    display: none !important;
+  }
+}
+
+@media screen and (min-height: 551px) {
+  #portrait-lock-barrier {
+    display: none !important;
+  }
+}

@@ -3,6 +3,7 @@ import MobileDock from "@/components/MobileDock";
 import PwaRegister from "@/components/PwaRegister";
 import InstallAppBanner from "@/components/InstallAppBanner";
 import FloatingHelpButton from "@/components/FloatingHelpButton";
+import PortraitLockGuard from "@/components/PortraitLockGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -159,6 +160,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: "#2563eb",
 };
@@ -196,6 +198,9 @@ export default function RootLayout({
 
         {/* Floating Campus Help & Support Desk */}
         <FloatingHelpButton />
+
+        {/* Mobile Portrait Orientation Lock Barrier */}
+        <PortraitLockGuard />
 
         {/* PWA Service Worker & Install Prompt Banner */}
         <PwaRegister />
