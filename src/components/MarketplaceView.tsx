@@ -456,77 +456,41 @@ export default function MarketplaceView() {
         )}
       </div>
 
-      {/* 2. DESKTOP HERO SECTION (Hidden on mobile for ultra-light mobile experience) */}
+      {/* 2. HERO BANNER (Visible on mobile & desktop, placed right before Categories) */}
       {!isFiltering && (
-        <div className="hidden sm:block">
-          <div className="relative w-full overflow-hidden bg-slate-900 text-white">
-            <div className="absolute inset-0 z-0">
-              <img
-                src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1600&q=80"
-                alt="Campus Marketplace"
-                className="h-full w-full object-cover opacity-25"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-blue-950/60" />
-            </div>
-
-            <div className="relative z-10 mx-auto max-w-5xl px-4 py-20 sm:py-24 text-center">
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.3em] text-blue-400">
-                CAMPUS STUDENT MARKETPLACE &bull; HO, VOLTA
-              </p>
-              <h1 className="mb-6 text-4xl sm:text-6xl font-black tracking-tight text-white">
-                Everything You Need
-              </h1>
-              <p className="mx-auto max-w-2xl text-sm sm:text-base text-slate-300 leading-relaxed">
-                Buy and sell quality student gadgets, verified hostels, textbooks, food, and thrift fashion across Ho with direct WhatsApp contact.
-              </p>
-
-              <div className="mt-8 flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="cursor-pointer rounded-full bg-blue-600 px-8 py-4 text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
-                >
-                  Explore Marketplace
-                </button>
-              </div>
-            </div>
+        <div className="relative w-full overflow-hidden bg-slate-900 text-white border-b border-slate-800">
+          <div className="absolute inset-0 z-0">
+            <img
+              src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1600&q=80"
+              alt="Campus Marketplace"
+              className="h-full w-full object-cover opacity-25"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-blue-950/60" />
           </div>
 
-          {/* Desktop Trust & Stats Section */}
-          <section className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 px-4 py-12">
-            <div className="mx-auto max-w-4xl text-center">
-              <div className="grid grid-cols-3 gap-6 items-center">
-                <div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400">
-                    100%
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Student Verified
-                  </p>
-                </div>
+          <div className="relative z-10 mx-auto max-w-5xl px-4 py-12 sm:py-20 md:py-24 text-center">
+            <p className="mb-3 sm:mb-4 text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] sm:tracking-[0.3em] text-blue-400">
+              CAMPUS STUDENT MARKETPLACE &bull; HO, VOLTA
+            </p>
+            <h1 className="mb-3 sm:mb-6 text-2xl sm:text-4xl md:text-6xl font-black tracking-tight text-white">
+              Everything You Need
+            </h1>
+            <p className="mx-auto max-w-2xl text-xs sm:text-sm md:text-base text-slate-300 leading-relaxed px-2">
+              Buy and sell quality student gadgets, verified hostels, textbooks, food, and thrift fashion across Ho with direct WhatsApp contact.
+            </p>
 
-                <div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400">
-                    500+
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Campus Listings
-                  </p>
-                </div>
-
-                <div>
-                  <div className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400">
-                    Direct
-                  </div>
-                  <p className="mt-1 text-xs font-bold text-slate-800 dark:text-slate-200">
-                    WhatsApp &amp; Calls
-                  </p>
-                </div>
-              </div>
+            <div className="mt-6 sm:mt-8 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  shopSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="cursor-pointer rounded-full bg-blue-600 px-6 sm:px-8 py-3 sm:py-4 text-xs sm:text-sm font-bold text-white shadow-lg shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
+              >
+                Explore Marketplace
+              </button>
             </div>
-          </section>
+          </div>
         </div>
       )}
 
