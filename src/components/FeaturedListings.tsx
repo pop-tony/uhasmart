@@ -79,7 +79,7 @@ export default function FeaturedListings() {
       try {
         const { data, error } = await supabase
           .from("listings")
-          .select("id,title,description,category,price_ghs,price_max_ghs,price_type,listing_type,gallery_images,video_url,contact_phone,location,seller_id,image_path,created_at,profiles(display_name,business_name,phone_number,campus_location,subscription_status,subscription_expires_at,trial_ends_at,created_at)")
+          .select("id,title,description,category,price_ghs,price_max_ghs,price_type,listing_type,gallery_images,video_url,contact_phone,location,seller_id,image_path,created_at,profiles(display_name,role,business_name,phone_number,campus_location,subscription_status,subscription_expires_at,trial_ends_at,created_at)")
           .eq("status", "active")
           .order("created_at", { ascending: false })
           .limit(12);
@@ -97,21 +97,27 @@ export default function FeaturedListings() {
     void loadRecent();
   }, [supabase]);
 
-  // Hide listings if seller's subscription has expired
+  // Hide listings if seller's subscription has expired (Admins exempt; 30-day trial measures from product creation, not user signup)
   const isSellerActive = (item: ProductItem): boolean => {
     if (!item.profiles) return true;
     const prof = item.profiles as {
+      role?: string | null;
       subscription_expires_at?: string | null;
       trial_ends_at?: string | null;
       created_at?: string | null;
     };
+
+    // 1. Admins post freely with lifetime active listings
+    if (prof.role === "admin") return true;
+
     let expiryDate: Date;
     if (prof.subscription_expires_at) {
       expiryDate = new Date(prof.subscription_expires_at);
     } else if (prof.trial_ends_at) {
       expiryDate = new Date(prof.trial_ends_at);
-    } else if (prof.created_at) {
-      expiryDate = new Date(new Date(prof.created_at).getTime() + 30 * 24 * 60 * 60 * 1000);
+    } else if (item.created_at) {
+      // 30 days from when the product was posted, NOT from account signup
+      expiryDate = new Date(new Date(item.created_at).getTime() + 30 * 24 * 60 * 60 * 1000);
     } else {
       return true;
     }

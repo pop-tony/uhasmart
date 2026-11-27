@@ -451,7 +451,7 @@ export default function AccountHub() {
 
               {/* Seller Subscription Box */}
               {(() => {
-                const subState = getSubscriptionState(profile);
+                const subState = getSubscriptionState(profile, listingCount);
                 return (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-blue-200/80 bg-blue-50/40">
                     <div className="flex items-center gap-3">
@@ -461,22 +461,28 @@ export default function AccountHub() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-xs font-bold text-gray-900">
-                            {subState.isExpired
+                            {subState.isAdmin
+                              ? "Admin Lifetime Selling (Free)"
+                              : subState.isExpired
                               ? "Subscription Expired"
+                              : subState.trialPendingStart
+                              ? "30-Day Free Trial (Pending first post)"
                               : subState.isTrial
                               ? `30-Day Free Trial (${subState.daysRemaining} days left)`
                               : `Active Plan (Expires ${subState.formattedExpiry})`}
                           </p>
                           <span
                             className={`rounded-full px-2 py-0.2 text-[9px] font-black uppercase ${
-                              subState.isExpired
+                              subState.isAdmin
+                                ? "bg-blue-100 text-blue-800"
+                                : subState.isExpired
                                 ? "bg-rose-100 text-rose-800"
-                                : subState.daysRemaining <= 5
+                                : subState.daysRemaining <= 5 && !subState.trialPendingStart
                                 ? "bg-amber-100 text-amber-800"
                                 : "bg-emerald-100 text-emerald-800"
                             }`}
                           >
-                            {subState.isExpired ? "Expired" : "Active"}
+                            {subState.isAdmin ? "Admin" : subState.isExpired ? "Expired" : "Active"}
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-500 mt-0.5">

@@ -33,6 +33,8 @@ import {
   Play,
   Link as LinkIcon,
   Pencil,
+  Gift,
+  ShieldCheck,
 } from "lucide-react";
 import { MAX_VIDEO_FILE_SIZE_BYTES, MAX_VIDEO_FILE_SIZE_MB } from "@/lib/video";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -150,8 +152,9 @@ export default function SellerDashboard() {
   const [savingQuickRename, setSavingQuickRename] = useState(false);
   const [quickRenameError, setQuickRenameError] = useState("");
 
-  // Calculate Subscription & Trial State
-  const subscriptionState: SubscriptionState = getSubscriptionState(profile);
+  // Calculate Subscription & Trial State (considers listings count and admin status)
+  const subscriptionState: SubscriptionState = getSubscriptionState(profile, listings.length);
+  const isAdmin = profile?.role === "admin";
 
   const loadSellerData = useCallback(async () => {
     if (!supabase) {
@@ -500,7 +503,7 @@ export default function SellerDashboard() {
     e.preventDefault();
     if (!supabase || !user) return;
 
-    if (profile?.role !== "seller") {
+    if (profile?.role !== "seller" && !isAdmin) {
       setError("Please register your student business details before listing products.");
       return;
     }
@@ -566,6 +569,31 @@ export default function SellerDashboard() {
         if (insertErr) throw insertErr;
 
         setListings((prev) => [newListing as ListingItem, ...prev]);
+
+        // Start 30-day trial upon first post (Admins exempt)
+        if (listings.length === 0 && !profile?.subscription_expires_at && !isAdmin) {
+          const trialEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          void supabase
+            .from("profiles")
+            .update({
+              subscription_status: "trial",
+              trial_ends_at: trialEndDate,
+              subscription_expires_at: trialEndDate,
+            })
+            .eq("id", user.id);
+
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  subscription_status: "trial",
+                  trial_ends_at: trialEndDate,
+                  subscription_expires_at: trialEndDate,
+                }
+              : prev
+          );
+        }
+
         setSuccess("Promotional flyer submitted! It is awaiting quick approval by campus moderators.");
         setShowCreateModal(false);
         handleRemoveFlyer();
@@ -693,6 +721,31 @@ export default function SellerDashboard() {
         if (insertedRows) {
           setListings((prev) => [...(insertedRows as ListingItem[]), ...prev]);
         }
+
+        // Start 30-day trial upon first post (Admins exempt)
+        if (listings.length === 0 && !profile?.subscription_expires_at && !isAdmin) {
+          const trialEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          void supabase
+            .from("profiles")
+            .update({
+              subscription_status: "trial",
+              trial_ends_at: trialEndDate,
+              subscription_expires_at: trialEndDate,
+            })
+            .eq("id", user.id);
+
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  subscription_status: "trial",
+                  trial_ends_at: trialEndDate,
+                  subscription_expires_at: trialEndDate,
+                }
+              : prev
+          );
+        }
+
         setSuccess(`Batch upload complete! Successfully listed ${rowsToInsert.length} individual products for review.`);
       }
 
@@ -894,8 +947,8 @@ export default function SellerDashboard() {
     );
   }
 
-  // Case 2: Logged in as customer -> Must register student business first
-  if (profile?.role !== "seller") {
+  // Case 2: Logged in as customer -> Must register student business first (Admins exempt)
+  if (profile?.role !== "seller" && !isAdmin) {
     return (
       <div className="flex w-full justify-center px-2">
         <RegisterBusinessUpgrade
@@ -917,95 +970,150 @@ export default function SellerDashboard() {
   return (
     <div className="w-full max-w-5xl space-y-6 px-1 sm:px-0">
       {/* 1. SELLER SUBSCRIPTION & TRIAL STATUS BANNER */}
-      <div
-        className={`rounded-3xl p-5 sm:p-6 border shadow-sm transition-all ${
-          subscriptionState.isExpired
-            ? "bg-rose-50/90 border-rose-200"
-            : subscriptionState.daysRemaining <= 5
-            ? "bg-amber-50/90 border-amber-200"
-            : "glass-card border-blue-100"
-        }`}
-      >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <span
-              className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-sm shrink-0 ${
-                subscriptionState.isExpired
-                  ? "bg-rose-600"
-                  : subscriptionState.daysRemaining <= 5
-                  ? "bg-amber-600"
-                  : "bg-blue-600"
-              }`}
-            >
-              <Zap className="h-6 w-6" />
-            </span>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
-                    subscriptionState.isExpired
-                      ? "bg-rose-100 text-rose-800"
-                      : subscriptionState.daysRemaining <= 5
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}
-                >
-                  {subscriptionState.isExpired
-                    ? "Subscription Expired"
-                    : subscriptionState.isTrial
-                    ? "30-Day Free Trial"
-                    : `Active Subscription • ${profile?.subscription_tier || "Standard"}`}
-                </span>
-                <span className="text-xs font-bold text-gray-500">
-                  {subscriptionState.isExpired
-                    ? "Products currently hidden from buyers"
-                    : `${subscriptionState.daysRemaining} days remaining (Expires ${subscriptionState.formattedExpiry})`}
-                </span>
+      {isAdmin ? (
+        <div className="rounded-3xl p-5 sm:p-6 border border-blue-200 bg-gradient-to-r from-blue-50/90 to-indigo-50/70 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/20 shrink-0">
+                <ShieldCheck className="h-6 w-6" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-blue-600 px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">
+                    Admin Privileges
+                  </span>
+                  <span className="text-xs font-bold text-blue-700">Unlimited Free Postings</span>
+                </div>
+                <h2 className="mt-1 text-base sm:text-lg font-black text-gray-900">
+                  Administrator Free Selling Access
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-600 max-w-xl leading-relaxed">
+                  As an administrator, your campus listings are live permanently with zero subscription fees or renewals.
+                </p>
               </div>
-
-              <h2 className="mt-1 text-base sm:text-lg font-black text-gray-900">
-                {subscriptionState.isExpired
-                  ? "Reactivate Your Listings with Mobile Money"
-                  : subscriptionState.isTrial
-                  ? `Enjoying VarsMart? ${subscriptionState.daysRemaining} days left in your free trial`
-                  : `Active ${profile?.subscription_tier || "Seller"} Plan • Ready for student buyers`}
-              </h2>
-
-              <p className="mt-0.5 text-xs text-gray-600 max-w-xl leading-relaxed">
-                {subscriptionState.isExpired
-                  ? "Your products are saved safely, but buyers cannot view or purchase them until subscription is renewed."
-                  : "Automatic reminders keep your listings live. Renew anytime using MTN MoMo, Telecel Cash, or AT Money."}
-              </p>
             </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
-            <button
-              type="button"
-              onClick={handleSyncPayment}
-              disabled={syncingPayment}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-3.5 py-3 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
-              title="Sync latest Paystack payment"
-            >
-              <Loader2 className={`h-3.5 w-3.5 text-gray-500 ${syncingPayment ? "animate-spin" : ""}`} />
-              <span>{syncingPayment ? "Syncing..." : "Sync Payment"}</span>
-            </button>
 
             <button
               type="button"
-              onClick={() => setShowSubscriptionModal(true)}
-              className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-xs font-black text-white shadow-md active:scale-95 transition-all ${
-                subscriptionState.isExpired
-                  ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/25"
-                  : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/25"
-              }`}
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-xs font-black text-white shadow-md hover:bg-blue-700 active:scale-95 transition-all w-full sm:w-auto"
             >
-              <Zap className="h-4 w-4" />
-              <span>{subscriptionState.isExpired ? "Renew with Mobile Money" : "Renew / Extend Plan"}</span>
+              <PlusCircle className="h-4 w-4" />
+              <span>Post New Item</span>
             </button>
           </div>
         </div>
-      </div>
+      ) : (
+        <div
+          className={`rounded-3xl p-5 sm:p-6 border shadow-sm transition-all ${
+            subscriptionState.isExpired
+              ? "bg-rose-50/90 border-rose-200"
+              : subscriptionState.daysRemaining <= 5 && !subscriptionState.trialPendingStart
+              ? "bg-amber-50/90 border-amber-200"
+              : "glass-card border-blue-100"
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <span
+                className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-sm shrink-0 ${
+                  subscriptionState.isExpired
+                    ? "bg-rose-600"
+                    : subscriptionState.daysRemaining <= 5 && !subscriptionState.trialPendingStart
+                    ? "bg-amber-600"
+                    : "bg-blue-600"
+                }`}
+              >
+                <Zap className="h-6 w-6" />
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                      subscriptionState.isExpired
+                        ? "bg-rose-100 text-rose-800"
+                        : subscriptionState.trialPendingStart
+                        ? "bg-purple-100 text-purple-800"
+                        : subscriptionState.daysRemaining <= 5
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
+                    {subscriptionState.isExpired
+                      ? "Subscription Expired"
+                      : subscriptionState.trialPendingStart
+                      ? "30-Day Free Trial • Ready"
+                      : subscriptionState.isTrial
+                      ? "30-Day Free Trial"
+                      : `Active Subscription • ${profile?.subscription_tier || "Standard"}`}
+                  </span>
+                  <span className="text-xs font-bold text-gray-500">
+                    {subscriptionState.isExpired
+                      ? "Products currently hidden from buyers"
+                      : subscriptionState.trialPendingStart
+                      ? "Starts when you post your first product"
+                      : `${subscriptionState.daysRemaining} days remaining (Expires ${subscriptionState.formattedExpiry})`}
+                  </span>
+                </div>
+
+                <h2 className="mt-1 text-base sm:text-lg font-black text-gray-900">
+                  {subscriptionState.isExpired
+                    ? "Reactivate Your Listings with Mobile Money or Promo Code"
+                    : subscriptionState.trialPendingStart
+                    ? "Welcome to VarsMart! Your 30-day free trial starts on your first post"
+                    : subscriptionState.isTrial
+                    ? `Enjoying VarsMart? ${subscriptionState.daysRemaining} days left in your free trial`
+                    : `Active ${profile?.subscription_tier || "Seller"} Plan • Ready for student buyers`}
+                </h2>
+
+                <p className="mt-0.5 text-xs text-gray-600 max-w-xl leading-relaxed">
+                  {subscriptionState.isExpired
+                    ? "Your products are saved safely, but buyers cannot view or purchase them until subscription is renewed."
+                    : subscriptionState.trialPendingStart
+                    ? "Upload your first product picture or promotional flyer below to activate your 30 days of free selling."
+                    : "Automatic reminders keep your listings live. Renew anytime using MTN MoMo, Telecel Cash, or AT Money."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowSubscriptionModal(true)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3.5 py-3 text-xs font-bold text-purple-800 shadow-sm active:scale-95 transition-all"
+                title="Enter 15-day free subscription promo code"
+              >
+                <Gift className="h-4 w-4 text-purple-600" />
+                <span>15-Day Promo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSyncPayment}
+                disabled={syncingPayment}
+                className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-gray-200 bg-white px-3.5 py-3 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
+                title="Sync latest Paystack payment"
+              >
+                <Loader2 className={`h-3.5 w-3.5 text-gray-500 ${syncingPayment ? "animate-spin" : ""}`} />
+                <span>{syncingPayment ? "Syncing..." : "Sync Payment"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSubscriptionModal(true)}
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-xs font-black text-white shadow-md active:scale-95 transition-all ${
+                  subscriptionState.isExpired
+                    ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/25"
+                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/25"
+                }`}
+              >
+                <Zap className="h-4 w-4" />
+                <span>{subscriptionState.isExpired ? "Renew with Mobile Money" : "Renew / Extend Plan"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2. TOP PORTAL BANNER */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl glass-card p-5 sm:p-6 shadow-sm">

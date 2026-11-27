@@ -11,6 +11,7 @@ import {
   Zap,
   CreditCard,
   Lock,
+  Gift,
 } from "lucide-react";
 import {
   SUBSCRIPTION_PLANS,
@@ -63,6 +64,48 @@ export default function SubscriptionModal({
   const [paymentStep, setPaymentStep] = useState<"select" | "prompting" | "success">("select");
   const [errorMessage, setErrorMessage] = useState("");
   const [successDate, setSuccessDate] = useState("");
+
+  // 15-Day Free Promo Code States
+  const [promoCode, setPromoCode] = useState("");
+  const [redeemingPromo, setRedeemingPromo] = useState(false);
+  const [promoError, setPromoError] = useState("");
+  const [promoSuccess, setPromoSuccess] = useState("");
+
+  async function handleRedeemPromo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId || !promoCode.trim()) return;
+
+    setPromoError("");
+    setPromoSuccess("");
+    setRedeemingPromo(true);
+
+    try {
+      const res = await fetch("/api/subscription/promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, code: promoCode.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to redeem promo code.");
+      }
+
+      setPromoSuccess(data.message || "Promo applied! 15 days free added.");
+      setSuccessDate(data.formattedExpiry || "15 days added");
+      onSuccess(data.newExpiry);
+
+      // Transition to success screen after brief delay
+      setTimeout(() => {
+        setPaymentStep("success");
+      }, 1200);
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : "Failed to apply promo code.");
+    } finally {
+      setRedeemingPromo(false);
+    }
+  }
 
   // Auto-redirect to seller dashboard upon successful payment
   useEffect(() => {
@@ -420,6 +463,60 @@ export default function SubscriptionModal({
                     <span>Visa / Mastercard</span>
                   </span>
                 </div>
+              </div>
+
+              {/* 15-Day Free Promo Code Box */}
+              <div className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50/80 to-blue-50/40 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm shrink-0">
+                    <Gift className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-black text-purple-950">Have a 15-Day Free Promo Code?</h4>
+                    <p className="text-[10px] text-purple-700 font-medium">Enter your subscription code for 15 days free posting (one-time use).</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 mt-2.5">
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value);
+                      setPromoError("");
+                      setPromoSuccess("");
+                    }}
+                    placeholder="e.g. VARS15"
+                    className="flex-1 rounded-xl border border-purple-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-wider text-purple-950 placeholder:text-gray-400 placeholder:normal-case outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRedeemPromo}
+                    disabled={redeemingPromo || !promoCode.trim()}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm disabled:opacity-50 active:scale-95 transition-all shrink-0"
+                  >
+                    {redeemingPromo ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    <span>{redeemingPromo ? "Applying..." : "Redeem 15 Days"}</span>
+                  </button>
+                </div>
+
+                {promoError && (
+                  <p className="mt-2 text-[11px] font-semibold text-rose-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{promoError}</span>
+                  </p>
+                )}
+
+                {promoSuccess && (
+                  <p className="mt-2 text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    <span>{promoSuccess}</span>
+                  </p>
+                )}
               </div>
 
               {/* Submit Payment CTA */}
