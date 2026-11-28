@@ -79,8 +79,7 @@ export interface SubscriptionState {
 
 /**
  * Calculates current seller subscription/trial status.
- * - Admins can post freely without subscription (Lifetime access).
- * - Every new seller receives a 30-day free trial that ONLY starts when they post their first product.
+ * Platform is in free access mode until December 31, 2026.
  */
 export function getSubscriptionState(
   profile?: {
@@ -93,123 +92,17 @@ export function getSubscriptionState(
   } | null,
   listingsCount?: number
 ): SubscriptionState {
-  const now = new Date();
-
-  // 1. ADMIN EXEMPTION: Admins can post products freely without subscription
-  if (profile?.role === "admin") {
-    const adminExpiry = new Date(now.getTime() + 100 * 365 * 24 * 60 * 60 * 1000);
-    return {
-      status: "active",
-      isActive: true,
-      isExpired: false,
-      isTrial: false,
-      isAdmin: true,
-      trialPendingStart: false,
-      daysRemaining: 9999,
-      formattedExpiry: "Lifetime (Admin)",
-      expiresAt: adminExpiry,
-    };
-  }
-
-  // 2. TRIAL TIMING: 30-day free subscription does NOT start on signup;
-  // It only starts when the seller has posted a product!
-  const hasPosted = (listingsCount !== undefined && listingsCount > 0) || !!profile?.first_posted_at;
-
-  // If a seller has an explicit paid/active subscription_expires_at or redeemed promo, honor it
-  if (profile?.subscription_expires_at) {
-    const expiryDate = new Date(profile.subscription_expires_at);
-    const msDiff = expiryDate.getTime() - now.getTime();
-    const daysRemaining = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));
-    const isExpired = msDiff <= 0;
-    const isPaid = profile.subscription_status === "active";
-    const isTrial = !isPaid && !isExpired;
-
-    let status: "trial" | "active" | "expiring_soon" | "expired" = "trial";
-    if (isExpired) {
-      status = "expired";
-    } else if (daysRemaining <= 5) {
-      status = "expiring_soon";
-    } else if (isPaid) {
-      status = "active";
-    } else {
-      status = "trial";
-    }
-
-    return {
-      status,
-      isActive: !isExpired,
-      isExpired,
-      isTrial,
-      isAdmin: false,
-      trialPendingStart: false,
-      daysRemaining,
-      formattedExpiry: expiryDate.toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-      expiresAt: expiryDate,
-    };
-  }
-
-  // If the seller has never posted any product yet, the 30-day trial has NOT started!
-  if (!hasPosted) {
-    const placeholderExpiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return {
-      status: "trial",
-      isActive: true,
-      isExpired: false,
-      isTrial: true,
-      isAdmin: false,
-      trialPendingStart: true,
-      daysRemaining: 30,
-      formattedExpiry: "Starts on first post",
-      expiresAt: placeholderExpiry,
-    };
-  }
-
-  // If they have posted and trial_ends_at is set:
-  let expiryDate: Date;
-  if (profile?.trial_ends_at) {
-    expiryDate = new Date(profile.trial_ends_at);
-  } else if (profile?.first_posted_at) {
-    expiryDate = new Date(new Date(profile.first_posted_at).getTime() + 30 * 24 * 60 * 60 * 1000);
-  } else {
-    // If listings exist but no explicit dates, 30 days from now
-    expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  }
-
-  const msDiff = expiryDate.getTime() - now.getTime();
-  const daysRemaining = Math.max(0, Math.ceil(msDiff / (1000 * 60 * 60 * 24)));
-  const isExpired = msDiff <= 0;
-  const isPaid = profile?.subscription_status === "active";
-  const isTrial = !isPaid && !isExpired;
-
-  let status: "trial" | "active" | "expiring_soon" | "expired" = "trial";
-  if (isExpired) {
-    status = "expired";
-  } else if (daysRemaining <= 5) {
-    status = "expiring_soon";
-  } else if (isPaid) {
-    status = "active";
-  } else {
-    status = "trial";
-  }
-
+  const freeEndDate = new Date("2026-12-31T23:59:59Z");
   return {
-    status,
-    isActive: !isExpired,
-    isExpired,
-    isTrial,
-    isAdmin: false,
+    status: "active",
+    isActive: true,
+    isExpired: false,
+    isTrial: false,
+    isAdmin: profile?.role === "admin",
     trialPendingStart: false,
-    daysRemaining,
-    formattedExpiry: expiryDate.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }),
-    expiresAt: expiryDate,
+    daysRemaining: Math.max(1, Math.ceil((freeEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))),
+    formattedExpiry: "Free Access",
+    expiresAt: freeEndDate,
   };
 }
 

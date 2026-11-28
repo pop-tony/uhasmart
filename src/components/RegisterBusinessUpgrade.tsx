@@ -89,8 +89,9 @@ export default function RegisterBusinessUpgrade({
               business_name: cleanBizName,
               phone_number: cleanPhone,
               campus_location: campusLocation,
-              subscription_status: "trial",
-              subscription_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              subscription_status: "active",
+              subscription_expires_at: "2026-12-31T23:59:59.000Z",
+              trial_ends_at: "2026-12-31T23:59:59.000Z",
             },
             { onConflict: "id" }
           )

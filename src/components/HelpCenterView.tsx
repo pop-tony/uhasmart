@@ -439,7 +439,7 @@ export default function HelpCenterView() {
                     <option value="Buying & Delivery Inquiries">Buying, Orders &amp; Delivery</option>
                     <option value="Hostel & Room Booking">Hostel Search &amp; Room Booking</option>
                     <option value="Seller Account & Uploading Products">Seller Registration &amp; Store Setup</option>
-                    <option value="Mobile Money & Paystack Payment">Mobile Money &amp; Subscription Payment</option>
+                    <option value="Mobile Money & Paystack Payment">Mobile Money &amp; Payment Inquiries</option>
                     <option value="Report Scam or Suspicious User">Report Suspicious Item or Scammer</option>
                     <option value="Account Login & Password Reset">Account Login &amp; Password</option>
                     <option value="General Inquiry">Other Campus Marketplace Question</option>

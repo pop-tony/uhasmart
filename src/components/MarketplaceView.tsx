@@ -152,33 +152,8 @@ export default function MarketplaceView() {
     void loadMarketplace();
   }, [supabase]);
 
-  // Hide expired listings (Admins exempt; 30-day trial measures from product creation, not user signup)
-  const isSellerActive = (item: ProductItem): boolean => {
-    if (!item.profiles) return true;
-    const prof = item.profiles as {
-      role?: string | null;
-      subscription_expires_at?: string | null;
-      trial_ends_at?: string | null;
-      created_at?: string | null;
-    };
-
-    // 1. Admins post freely with lifetime active listings
-    if (prof.role === "admin") return true;
-
-    let expiryDate: Date;
-    if (prof.subscription_expires_at) {
-      expiryDate = new Date(prof.subscription_expires_at);
-    } else if (prof.trial_ends_at) {
-      expiryDate = new Date(prof.trial_ends_at);
-    } else if (item.created_at) {
-      // 30 days from when the product was posted, NOT from account signup
-      expiryDate = new Date(new Date(item.created_at).getTime() + 30 * 24 * 60 * 60 * 1000);
-    } else {
-      return true;
-    }
-
-    return expiryDate.getTime() > Date.now();
-  };
+  // Free access for all sellers - ensure every product displays
+  const isSellerActive = (_item: ProductItem): boolean => true;
 
   // Smart synonym hint for active search queries
   const synonymHint = useMemo(() => {

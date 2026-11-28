@@ -7,8 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useUnreadMessages } from "@/lib/useUnreadMessages";
 import { campusLocations } from "@/lib/data";
 import RegisterBusinessUpgrade from "@/components/RegisterBusinessUpgrade";
-import SubscriptionModal from "@/components/SubscriptionModal";
-import { getSubscriptionState } from "@/lib/subscriptions";
 import {
   ShieldCheck,
   Mail,
@@ -29,7 +27,6 @@ import {
   AlertTriangle,
   Sparkles,
   X,
-  Zap,
   LifeBuoy,
 } from "lucide-react";
 import { parseSellerPhones } from "@/lib/whatsapp";
@@ -70,9 +67,8 @@ export default function AccountHub() {
   const [profileSuccess, setProfileSuccess] = useState("");
   const [profileError, setProfileError] = useState("");
 
-  // Business upgrade & subscription modal states
+  // Business upgrade modal state
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   // Password change states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -448,60 +444,6 @@ export default function AccountHub() {
                 </div>
                 <ArrowRight className="h-4 w-4 text-emerald-600 transition-transform group-hover:translate-x-0.5" />
               </Link>
-
-              {/* Seller Subscription Box */}
-              {(() => {
-                const subState = getSubscriptionState(profile, listingCount);
-                return (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-blue-200/80 bg-blue-50/40">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shrink-0">
-                        <Zap className="h-5 w-5" />
-                      </span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-gray-900">
-                            {subState.isAdmin
-                              ? "Admin Lifetime Selling (Free)"
-                              : subState.isExpired
-                              ? "Subscription Expired"
-                              : subState.trialPendingStart
-                              ? "30-Day Free Trial (Pending first post)"
-                              : subState.isTrial
-                              ? `30-Day Free Trial (${subState.daysRemaining} days left)`
-                              : `Active Plan (Expires ${subState.formattedExpiry})`}
-                          </p>
-                          <span
-                            className={`rounded-full px-2 py-0.2 text-[9px] font-black uppercase ${
-                              subState.isAdmin
-                                ? "bg-blue-100 text-blue-800"
-                                : subState.isExpired
-                                ? "bg-rose-100 text-rose-800"
-                                : subState.daysRemaining <= 5 && !subState.trialPendingStart
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-emerald-100 text-emerald-800"
-                            }`}
-                          >
-                            {subState.isAdmin ? "Admin" : subState.isExpired ? "Expired" : "Active"}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-gray-500 mt-0.5">
-                          {subState.isExpired
-                            ? "Your listings are hidden from buyers until subscription is renewed."
-                            : "MTN MoMo, Telecel Cash & AT Money automatic billing."}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowSubscriptionModal(true)}
-                      className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all shrink-0"
-                    >
-                      {subState.isExpired ? "Renew with MoMo" : "Manage / Extend Plan"}
-                    </button>
-                  </div>
-                );
-              })()}
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-blue-200/80 bg-blue-50/50 p-4 shadow-sm">
@@ -918,37 +860,6 @@ export default function AccountHub() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Subscription Modal */}
-      {user && (
-        <SubscriptionModal
-          isOpen={showSubscriptionModal}
-          onClose={() => setShowSubscriptionModal(false)}
-          userId={user.id}
-          userEmail={user.email}
-          sellerName={profile?.business_name || profile?.display_name || "Seller"}
-          defaultPhone={profile?.phone_number}
-          subscriptionState={getSubscriptionState(profile)}
-          onSuccess={() => {
-            setLoading(true);
-            // reload user profile data
-            const loadAgain = async () => {
-              if (!supabase) return;
-              const { data: authData } = await supabase.auth.getUser();
-              if (authData?.user) {
-                const { data: pData } = await supabase
-                  .from("profiles")
-                  .select("display_name,role,business_name,phone_number,campus_location,subscription_status,subscription_expires_at,trial_ends_at,created_at")
-                  .eq("id", authData.user.id)
-                  .maybeSingle();
-                if (pData) setProfile(pData as ProfileData);
-              }
-              setLoading(false);
-            };
-            void loadAgain();
-          }}
-        />
       )}
     </section>
   );
